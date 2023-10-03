@@ -54,7 +54,7 @@ M.server_config = {
 	capabilities = nil,
 	on_attach = nil,
 }
-M.client_by_target = {} ---@type table<string, number|nil>
+M.client_by_target = {} ---@type table<string, table|nil>
 M.targets_by_bufnr = {} ---@type table<number, string[]>
 
 function M.init_buf_targets(bufnr)
@@ -109,27 +109,22 @@ function M.attach_or_spawn(bufnr)
 		return
 	end
 
-	local client_id = M.client_by_target[target]
-	if client_id == nil then
-		client_id = require("roslyn.client").spawn(
-			M.server_config.dotnet_cmd,
-			target,
-			M.server_config.on_attach,
-			M.server_config.capabilities
-		)
-		if client_id == nil then
+	local client = M.client_by_target[target]
+	if client == nil then
+		client = require("roslyn.client").spawn(M.server_config.dotnet_cmd, target, function()
+			M.client_by_target[target] = nil
+		end, M.server_config.on_attach, M.server_config.capabilities)
+		if client == nil then
 			vim.notify(
-				"Failed to start omnisharp client for " .. vim.fn.fnamemodify(target, ":~:."),
+				"Failed to start Roslyn client for " .. vim.fn.fnamemodify(target, ":~:."),
 				vim.log.levels.ERROR
 			)
 			return
 		end
-		M.client_by_target[target] = client_id
+		M.client_by_target[target] = client
 	end
 
-	if vim.lsp.buf_attach_client(bufnr, client_id) == false then
-		vim.notify("Failed to attach omnisharp client for " .. vim.fn.fnamemodify(target, ":~:."), vim.log.levels.ERROR)
-	end
+    client:attach(bufnr)
 end
 
 function M.select_target(bufnr)
