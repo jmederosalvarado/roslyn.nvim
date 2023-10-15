@@ -1,15 +1,5 @@
 local roslyn_lsp_rpc = require("roslyn.lsp")
-
-local function fix_diagnostics_tags(diagnostics)
-	for _, diagnostic in ipairs(diagnostics) do
-		if diagnostic.tags ~= nil then
-			diagnostic.tags = vim.tbl_filter(function(tag)
-				return tag == vim.lsp.protocol.DiagnosticTag.Unnecessary
-					and tag == vim.lsp.protocol.DiagnosticTag.Deprecated
-			end, diagnostic.tags)
-		end
-	end
-end
+local fixes = require("roslyn.fixes")
 
 ---@class RoslynClient
 ---@field id number
@@ -91,9 +81,10 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 	client.id = vim.lsp.start_client({
 		name = "roslyn",
 		capabilities = capabilities,
-		cmd = vim.lsp.rpc.connect("127.0.0.1", 8080),
+        -- see https://github.com/dotnet/roslyn/issues/70392
+		cmd = fixes.wrap_server_cmd(vim.lsp.rpc.connect("127.0.0.1", 8080)),
+		-- cmd = fixes.wrap_server_cmd(roslyn_lsp_rpc.start_uds(cmd, server_args)),
 		root_dir = vim.fn.getcwd(),
-		-- cmd = roslyn_lsp_rpc.start_uds(cmd, server_args),
 		on_init = function(client)
 			vim.notify(
 				"Roslyn client initialized for target " .. vim.fn.fnamemodify(target, ":~:."),
@@ -108,13 +99,13 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 		handlers = {
 			["textDocument/publishDiagnostics"] = function(err, res, ctx, config)
 				if res.items ~= nil then
-					fix_diagnostics_tags(res.items)
+					fixes.fix_diagnostics_tags(res.items)
 				end
 				return on_publish_diagnostic(err, res, ctx, config)
 			end,
 			["textDocument/diagnostic"] = function(err, res, ctx, config)
 				if res.items ~= nil then
-					fix_diagnostics_tags(res.items)
+					fixes.fix_diagnostics_tags(res.items)
 				end
 				return on_diagnostic(err, res, ctx, config)
 			end,
