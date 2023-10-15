@@ -603,7 +603,7 @@ function M.start_uds(cmd, cmd_args, extra_spawn_params)
 		})
 
 		local stdout_handler = function(_, data)
-			vim.notify("got data " .. data, vim.log.levels.INFO)
+			-- vim.notify("got data " .. data, vim.log.levels.INFO)
 			-- read lines until we can decode json object
 			if not data then
 				vim.notify(string.format("data evaluates: (%s, %s) ", #data, data[1]), vim.log.levels.INFO)
@@ -611,14 +611,14 @@ function M.start_uds(cmd, cmd_args, extra_spawn_params)
 			end
 
 			-- try parse data as json
-			vim.notify("will try to parse json from " .. data, vim.log.levels.INFO)
+			-- vim.notify("will try to parse json from " .. data, vim.log.levels.INFO)
 			local success, json_obj = pcall(vim.json.decode, data)
 			if not success then
 				return
 			end
 
 			local pipe_name = json_obj["pipeName"]
-			vim.notify("will try to connect to " .. pipe_name, vim.log.levels.INFO)
+			-- vim.notify("will try to connect to " .. pipe_name, vim.log.levels.INFO)
 			pipe:connect(pipe_name, function(err)
 				if err then
 					vim.schedule(function()
