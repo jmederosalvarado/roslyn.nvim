@@ -9,7 +9,7 @@ local RoslynClient = {}
 
 function RoslynClient:initialize()
 	for _, bufnr in ipairs(self._bufnrs) do
-		if vim.lsp.buf_attach_client(bufnr, self.id) == false then
+		if not vim.lsp.buf_attach_client(bufnr, self.id) then
 			local target = vim.fn.fnamemodify(self.target, ":~:.")
 			local bufname = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":~:.")
 			vim.notify(string.format("Failed to attach Roslyn(%s) for %s", target, bufname), vim.log.levels.ERROR)
@@ -97,17 +97,30 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 				["solution"] = target_uri,
 			})
 		end,
-		on_attach = vim.schedule_wrap(on_attach),
+		on_attach = vim.schedule_wrap(function(client, bufnr)
+			on_attach(client, bufnr)
+
+            -- vim.api.nvim_buf_attach(bufnr, false, {
+            --     on_lines = function(_, bufnr, changedtick, firstline, lastline, new_lastline)
+            --         -- we are only interested in one character insertions
+            --         if firstline ~= lastline or new_lastline ~= lastline then
+            --             return
+            --         end
+            --
+            --         -- https://github.com/dotnet/vscode-csharp/blob/main/src/lsptoolshost/onAutoInsert.ts
+            --     end,
+            -- })
+		end),
 		handlers = {
 			["textDocument/publishDiagnostics"] = function(err, res, ctx, config)
 				if res.items ~= nil then
-					fixes.fix_diagnostics_tags(res.items)
+					hacks.fix_diagnostics_tags(res.items)
 				end
 				return on_publish_diagnostic(err, res, ctx, config)
 			end,
 			["textDocument/diagnostic"] = function(err, res, ctx, config)
 				if res.items ~= nil then
-					fixes.fix_diagnostics_tags(res.items)
+					hacks.fix_diagnostics_tags(res.items)
 				end
 				return on_diagnostic(err, res, ctx, config)
 			end,
