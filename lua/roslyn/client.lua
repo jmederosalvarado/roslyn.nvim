@@ -1,5 +1,5 @@
 local roslyn_lsp_rpc = require("roslyn.lsp")
-local fixes = require("roslyn.fixes")
+local hacks = require("roslyn.hacks")
 
 ---@class RoslynClient
 ---@field id number
@@ -84,8 +84,8 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 		name = "roslyn",
 		capabilities = capabilities,
 		-- see https://github.com/dotnet/roslyn/issues/70392
-		cmd = fixes.wrap_server_cmd(vim.lsp.rpc.connect("127.0.0.1", 8080)),
-		-- cmd = fixes.wrap_server_cmd(roslyn_lsp_rpc.start_uds(cmd, server_args)),
+		cmd = hacks.wrap_server_cmd(vim.lsp.rpc.connect("127.0.0.1", 8080)),
+		-- cmd = hacks.wrap_server_cmd(roslyn_lsp_rpc.start_uds(cmd, server_args)),
 		root_dir = vim.fn.getcwd(),
 		on_init = function(client)
 			vim.notify(
