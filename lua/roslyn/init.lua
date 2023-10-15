@@ -115,16 +115,13 @@ function M.attach_or_spawn(bufnr)
 			M.client_by_target[target] = nil
 		end, M.server_config.on_attach, M.server_config.capabilities)
 		if client == nil then
-			vim.notify(
-				"Failed to start Roslyn client for " .. vim.fn.fnamemodify(target, ":~:."),
-				vim.log.levels.ERROR
-			)
+			vim.notify("Failed to start Roslyn client for " .. vim.fn.fnamemodify(target, ":~:."), vim.log.levels.ERROR)
 			return
 		end
 		M.client_by_target[target] = client
 	end
 
-    client:attach(bufnr)
+	client:attach(bufnr)
 end
 
 function M.select_target(bufnr)

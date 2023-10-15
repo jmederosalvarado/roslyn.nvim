@@ -70,9 +70,11 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 	local on_diagnostic = vim.lsp.diagnostic.on_diagnostic
 	local on_publish_diagnostic = vim.lsp.diagnostic.on_publish_diagnostics
 
-	capabilities.workspace = vim.tbl_deep_extend("force", capabilities.workspace or {}, {
-		didChangeWatchedFiles = {
-			dynamicRegistration = false,
+	capabilities.workspace = vim.tbl_deep_extend("force", capabilities, {
+		workspace = {
+			didChangeWatchedFiles = {
+				dynamicRegistration = false,
+			},
 		},
 	})
 
@@ -81,7 +83,7 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 	client.id = vim.lsp.start_client({
 		name = "roslyn",
 		capabilities = capabilities,
-        -- see https://github.com/dotnet/roslyn/issues/70392
+		-- see https://github.com/dotnet/roslyn/issues/70392
 		cmd = fixes.wrap_server_cmd(vim.lsp.rpc.connect("127.0.0.1", 8080)),
 		-- cmd = fixes.wrap_server_cmd(roslyn_lsp_rpc.start_uds(cmd, server_args)),
 		root_dir = vim.fn.getcwd(),

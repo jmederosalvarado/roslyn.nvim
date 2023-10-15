@@ -30,17 +30,18 @@ function M.wrap_rpc_client(client)
 	---@return boolean `true` if notification could be sent, `false` if not
 	function result.notify(method, params)
 		if method == vim.lsp.protocol.Methods.textDocument_didChange then
-            ---@cast params -nil Assert that params is not nil
-            local changes = params.contentChanges
-            for _, change in ipairs(changes) do
-                if not client.notify(method, {
-                    textDocument = params.textDocument,
-                    contentChanges = { change }
-                }) then
-                    return false
-                end
-            end
-            return true
+			---@cast params -nil Assert that params is not nil
+			local changes = params.contentChanges
+			for _, change in ipairs(changes) do
+				local notified = client.notify(method, {
+					textDocument = params.textDocument,
+					contentChanges = { change },
+				})
+				if not notified then
+					return notified
+				end
+			end
+			return true
 		end
 		return client.notify(method, params)
 	end
@@ -49,9 +50,9 @@ function M.wrap_rpc_client(client)
 end
 
 function M.wrap_server_cmd(cmd_fn)
-    return function (...)
-        return M.wrap_rpc_client(cmd_fn(...))
-    end
+	return function(...)
+		return M.wrap_rpc_client(cmd_fn(...))
+	end
 end
 
 function M.fix_diagnostics_tags(diagnostics)
