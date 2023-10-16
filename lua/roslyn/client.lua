@@ -2,7 +2,7 @@ local roslyn_lsp_rpc = require("roslyn.lsp")
 local hacks = require("roslyn.hacks")
 
 ---@class RoslynClient
----@field id number
+---@field id number?
 ---@field target string
 ---@field private _bufnrs number[] | nil
 local RoslynClient = {}
@@ -53,7 +53,8 @@ local M = {}
 ---@param on_attach function
 ---@param capabilities table
 function M.spawn(cmd, target, on_exit, on_attach, capabilities)
-	local server_path = vim.fs.joinpath(vim.fn.stdpath("data"), "roslyn", "Microsoft.CodeAnalysis.LanguageServer.dll")
+	local data_path = vim.fn.stdpath("data") --[[@as string]]
+	local server_path = vim.fs.joinpath(data_path, "roslyn", "Microsoft.CodeAnalysis.LanguageServer.dll")
 	if not vim.uv.fs_stat(server_path) then
 		vim.notify_once("Roslyn LSP server not installed", vim.log.levels.ERROR, { title = "Roslyn" })
 		return
@@ -67,26 +68,92 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 
 	local target_uri = vim.uri_from_fname(target)
 
-	local on_diagnostic = vim.lsp.diagnostic.on_diagnostic
-	local on_publish_diagnostic = vim.lsp.diagnostic.on_publish_diagnostics
+	-- capabilities = vim.tbl_deep_extend("force", capabilities, {
+	-- 	workspace = {
+	-- 		didChangeWatchedFiles = {
+	-- 			dynamicRegistration = false,
+	-- 		},
+	-- 	},
+	-- })
 
-	capabilities.workspace = vim.tbl_deep_extend("force", capabilities, {
-		workspace = {
-			didChangeWatchedFiles = {
-				dynamicRegistration = false,
-			},
-		},
-	})
+	local spawned = RoslynClient.new(target)
 
-	local client = RoslynClient.new(target)
-
-	client.id = vim.lsp.start_client({
+	---@diagnostic disable-next-line: missing-fields
+	spawned.id = vim.lsp.start_client({
 		name = "roslyn",
 		capabilities = capabilities,
-		-- see https://github.com/dotnet/roslyn/issues/70392
-		cmd = hacks.wrap_server_cmd(vim.lsp.rpc.connect("127.0.0.1", 8080)),
-		-- cmd = hacks.wrap_server_cmd(roslyn_lsp_rpc.start_uds(cmd, server_args)),
-		root_dir = vim.fn.getcwd(),
+		settings = {
+			["csharp|background_analysis"] = {
+				["dotnet_analyzer_diagnostics_scope"] = nil,
+				["dotnet_compiler_diagnostics_scope"] = nil,
+			},
+			["csharp|code_lens"] = {
+				["dotnet_enable_references_code_lens"] = nil,
+				["dotnet_enable_tests_code_lens"] = nil,
+			},
+			["csharp|code_style"] = {
+				["formatting"] = {
+					["indentation_and_spacing"] = {
+						["indent_size"] = nil,
+						["indent_style"] = nil,
+						["tab_width"] = nil,
+					},
+					["new_line"] = {
+						["end_of_line"] = nil,
+					},
+				},
+			},
+			["csharp|completion"] = {
+				["dotnet_provide_regex_completions"] = nil,
+				["dotnet_show_completion_items_from_unimported_namespaces"] = true,
+				["dotnet_show_name_completion_suggestions"] = true,
+			},
+			["csharp|highlighting"] = {
+				["dotnet_highlight_related_json_components"] = nil,
+				["dotnet_highlight_related_regex_components"] = nil,
+			},
+			["csharp|implement_type"] = {
+				["dotnet_insertion_behavior"] = nil,
+				["dotnet_property_generation_behavior"] = nil,
+			},
+			["csharp|inlay_hints"] = {
+				["csharp_enable_inlay_hints_for_implicit_object_creation"] = nil,
+				["csharp_enable_inlay_hints_for_implicit_variable_types"] = nil,
+				["csharp_enable_inlay_hints_for_lambda_parameter_types"] = nil,
+				["csharp_enable_inlay_hints_for_types"] = nil,
+				["dotnet_enable_inlay_hints_for_indexer_parameters"] = nil,
+				["dotnet_enable_inlay_hints_for_literal_parameters"] = nil,
+				["dotnet_enable_inlay_hints_for_object_creation_parameters"] = nil,
+				["dotnet_enable_inlay_hints_for_other_parameters"] = nil,
+				["dotnet_enable_inlay_hints_for_parameters"] = nil,
+				["dotnet_suppress_inlay_hints_for_parameters_that_differ_only_by_suffix"] = nil,
+				["dotnet_suppress_inlay_hints_for_parameters_that_match_argument_name"] = nil,
+				["dotnet_suppress_inlay_hints_for_parameters_that_match_method_intent"] = nil,
+			},
+			["csharp|quick_info"] = {
+				["dotnet_show_remarks_in_quick_info"] = true,
+			},
+			["csharp|symbol_search"] = {
+				["dotnet_search_reference_assemblies"] = nil,
+			},
+			["navigation"] = {
+				["dotnet_navigate_to_decompiled_sources"] = nil,
+			},
+			["projects"] = {
+				["dotnet_binary_log_path"] = nil,
+				["dotnet_load_in_process"] = nil,
+			},
+			["code_style"] = {
+				["formatting"] = {
+					["new_line"] = {
+						["insert_final_newline"] = nil,
+					},
+				},
+			},
+		},
+		-- cmd = hacks.wrap_server_cmd(vim.lsp.rpc.connect("127.0.0.1", 8080)),
+		cmd = hacks.wrap_server_cmd(roslyn_lsp_rpc.start_uds(cmd, server_args)),
+		root_dir = vim.fn.getcwd(), ---@diagnostic disable-line: assign-type-mismatch
 		on_init = function(client)
 			vim.notify(
 				"Roslyn client initialized for target " .. vim.fn.fnamemodify(target, ":~:."),
@@ -100,43 +167,40 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 		on_attach = vim.schedule_wrap(function(client, bufnr)
 			on_attach(client, bufnr)
 
-            -- vim.api.nvim_buf_attach(bufnr, false, {
-            --     on_lines = function(_, bufnr, changedtick, firstline, lastline, new_lastline)
-            --         -- we are only interested in one character insertions
-            --         if firstline ~= lastline or new_lastline ~= lastline then
-            --             return
-            --         end
-            --
-            --         -- https://github.com/dotnet/vscode-csharp/blob/main/src/lsptoolshost/onAutoInsert.ts
-            --     end,
-            -- })
+			-- vim.api.nvim_buf_attach(bufnr, false, {
+			--     on_lines = function(_, bufnr, changedtick, firstline, lastline, new_lastline)
+			--         -- we are only interested in one character insertions
+			--         if firstline ~= lastline or new_lastline ~= lastline then
+			--             return
+			--         end
+			--
+			--         -- https://github.com/dotnet/vscode-csharp/blob/main/src/lsptoolshost/onAutoInsert.ts
+			--     end,
+			-- })
 		end),
 		handlers = {
-			["textDocument/publishDiagnostics"] = function(err, res, ctx, config)
-				if res.items ~= nil then
-					hacks.fix_diagnostics_tags(res.items)
-				end
-				return on_publish_diagnostic(err, res, ctx, config)
-			end,
-			["textDocument/diagnostic"] = function(err, res, ctx, config)
-				if res.items ~= nil then
-					hacks.fix_diagnostics_tags(res.items)
-				end
-				return on_diagnostic(err, res, ctx, config)
-			end,
+			[vim.lsp.protocol.Methods.textDocument_publishDiagnostics] = hacks.with_fixed_diagnostics_tags(
+				vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics]
+			),
+			[vim.lsp.protocol.Methods.textDocument_diagnostic] = hacks.with_fixed_diagnostics_tags(
+				vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_diagnostic]
+			),
+			[vim.lsp.protocol.Methods.client_registerCapability] = hacks.with_filtered_watchers(
+				vim.lsp.handlers[vim.lsp.protocol.Methods.client_registerCapability]
+			),
 			["workspace/projectInitializationComplete"] = function()
 				vim.notify("Roslyn project initialization complete", vim.log.levels.INFO)
-				client:initialize()
+				spawned:initialize()
 			end,
 		},
 		on_exit = on_exit,
 	})
 
-	if client.id == nil then
+	if spawned.id == nil then
 		return nil
 	end
 
-	return client
+	return spawned
 end
 
 return M
