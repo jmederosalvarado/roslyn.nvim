@@ -8,6 +8,8 @@ The plugin doesn't depend on any other neovim plugins, not even `nvim-lspconfig`
 
 ## Setup
 
+Just install `jmederosalvarado/roslyn.nvim` using your plugin manager.
+
 ```lua
 require("roslyn").setup({
 	dotnet_cmd = "dotnet", -- this is the default
