@@ -56,7 +56,7 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 	local data_path = vim.fn.stdpath("data") --[[@as string]]
 	local server_path = vim.fs.joinpath(data_path, "roslyn", "Microsoft.CodeAnalysis.LanguageServer.dll")
 	if not vim.uv.fs_stat(server_path) then
-		vim.notify_once("Roslyn LSP server not installed", vim.log.levels.ERROR, { title = "Roslyn" })
+		vim.notify_once("Roslyn LSP server not installed. Run CSInstallRoslyn to install.", vim.log.levels.ERROR, { title = "Roslyn" })
 		return
 	end
 
