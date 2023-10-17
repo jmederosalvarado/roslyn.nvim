@@ -4,7 +4,7 @@ This plugin adds support for the new Roslyn-based C# language server [introduced
 
 ## Dependencies
 
-The plugin doesn't depend on any other neovim plugins, not even `nvim-lspconfig`. It's enough to have dotnet installed.
+The plugin depends on `nvim-lspconfig` for some path utility functions. You should also have dotnet installed.
 
 ## Setup
 
