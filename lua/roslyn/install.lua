@@ -29,16 +29,44 @@ local csproj = {
 	[[</Project>]],
 }
 
-local sysname2os = {
-	["Darwin"] = "osx",
-	["Linux"] = "linux",
-	["Windows"] = "win",
-}
+local function get_rid()
+	local system_info = vim.uv.os_uname()
+	local platform = system_info.sysname:lower()
+	local arch = system_info.machine:lower()
+
+	if platform == "darwin" then
+		if arch == "x86_64" then
+			return "osx-x64"
+		elseif arch == "arm64" then
+			return "osx-arm64"
+		end
+	end
+
+	-- probably missing linux-musl/alpine
+	if platform == "linux" then
+		if arch == "x86_64" then
+			return "linux-x64"
+		elseif arch == "arm64" then
+			return "linux-arm64"
+		end
+	end
+
+	-- not sure about this one
+	if platform == "windows" then
+		if arch == "x86_64" then
+			return "win-x64"
+		elseif arch == "x86" then
+			return "win-x86"
+		end
+	end
+
+	vim.notify("Unsupported platform: " .. vim.inspect(system_info), vim.log.levels.ERROR, { title = "Roslyn" })
+end
 
 local M = {}
 
 function M.install(dotnet_cmd, roslyn_pkg_version)
-	local server_path = vim.fs.joinpath(vim.fn.stdpath("data"), "roslyn")
+	local server_path = vim.fs.joinpath(vim.fn.stdpath("data")--[[@as string]], "roslyn")
 
 	if vim.fn.isdirectory(server_path) == 1 then
 		local reinstall = false
@@ -60,8 +88,7 @@ function M.install(dotnet_cmd, roslyn_pkg_version)
 	local download_path = vim.fn.tempname()
 	vim.fn.mkdir(download_path, "p")
 
-	local system_info = vim.uv.os_uname()
-	local rid = sysname2os[system_info.sysname] .. "-" .. system_info.machine:lower()
+	local rid = get_rid()
 	local roslyn_pkg_name = "microsoft.codeanalysis.languageserver." .. rid
 
 	vim.fn.writefile(csproj, vim.fs.joinpath(download_path, "ServerDownload.csproj"))
