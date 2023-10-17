@@ -1,11 +1,11 @@
 local util = require("lspconfig.util")
 
 local function set_selected_target(bufnr, target)
-	vim.g["OmnisharperSelectedTarget" .. bufnr] = target
+	vim.g["RoslynSelectedTarget" .. bufnr] = target
 end
 
 local function get_selected_target(bufnr)
-	return vim.g["OmnisharperSelectedTarget" .. bufnr]
+	return vim.g["RoslynSelectedTarget" .. bufnr]
 end
 
 ---Finds the possible Targets
@@ -24,24 +24,24 @@ local function find_possible_targets(fname)
 		prefered_target = targets[1]
 	end
 
-	local csproj_dir = util.root_pattern("*csproj")(fname)
-	if csproj_dir then
-		table.insert(targets, csproj_dir)
-	end
-
-	local git_dir = util.root_pattern(".git")(fname)
-	if git_dir and not vim.tbl_contains(targets, git_dir) then
-		table.insert(targets, git_dir)
-	end
-
-	local cwd = vim.fn.getcwd()
-	if util.path.is_descendant(cwd, fname) and not vim.tbl_contains(targets, cwd) then
-		table.insert(targets, cwd)
-	end
-
-	if #targets == 1 then
-		prefered_target = targets[1]
-	end
+	-- local csproj_dir = util.root_pattern("*csproj")(fname)
+	-- if csproj_dir then
+	-- 	table.insert(targets, csproj_dir)
+	-- end
+	--
+	-- local git_dir = util.root_pattern(".git")(fname)
+	-- if git_dir and not vim.tbl_contains(targets, git_dir) then
+	-- 	table.insert(targets, git_dir)
+	-- end
+	--
+	-- local cwd = vim.fn.getcwd()
+	-- if util.path.is_descendant(cwd, fname) and not vim.tbl_contains(targets, cwd) then
+	-- 	table.insert(targets, cwd)
+	-- end
+	--
+	-- if #targets == 1 then
+	-- 	prefered_target = targets[1]
+	-- end
 
 	return targets, prefered_target
 end

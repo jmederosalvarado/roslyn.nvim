@@ -60,6 +60,12 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 		return
 	end
 
+    -- target should be a `.sln` file
+    if target:sub(-4) ~= ".sln" then
+        vim.notify("Roslyn target should be a `.sln` file", vim.log.levels.ERROR)
+        return
+    end
+
 	local server_args = {
 		server_path,
 		"--logLevel=Information",
