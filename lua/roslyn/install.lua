@@ -89,6 +89,9 @@ function M.install(dotnet_cmd, roslyn_pkg_version)
 	vim.fn.mkdir(download_path, "p")
 
 	local rid = get_rid()
+	if not rid then
+		return
+	end
 	local roslyn_pkg_name = "microsoft.codeanalysis.languageserver." .. rid
 
 	vim.fn.writefile(csproj, vim.fs.joinpath(download_path, "ServerDownload.csproj"))
