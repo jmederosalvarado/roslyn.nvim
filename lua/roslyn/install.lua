@@ -52,7 +52,7 @@ local function get_rid()
 	end
 
 	-- not sure about this one
-	if platform == "windows" then
+	if platform == "windows_nt" then
 		if arch == "x86_64" then
 			return "win-x64"
 		elseif arch == "x86" then
