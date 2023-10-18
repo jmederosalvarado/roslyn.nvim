@@ -1,6 +1,7 @@
 local M = {}
 
 -- see https://github.com/dotnet/roslyn/issues/70392
+-- fixed https://github.com/dotnet/roslyn/pull/70407
 function M.wrap_rpc_client(client)
 	local result = {}
 
