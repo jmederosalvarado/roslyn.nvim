@@ -1,0 +1,96 @@
+name: Build and Release Server
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs at 00:00 UTC every day
+  workflow_dispatch:
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: ['platform1', 'platform2', 'platform3'] # Add more platforms as required
+        include:
+          - platform: 'platform1'
+            build_command: './build-command-for-platform1.sh'
+            output_directory: './path-to-platform1-output/'
+          - platform: 'platform2'
+            build_command: './build-command-for-platform2.sh'
+            output_directory: './path-to-platform2-output/'
+          # Add more platform configurations as required
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v2
+
+      - name: Checkout source repo
+        uses: actions/checkout@v2
+        with:
+          repository: 'dotnet/roslyn'
+
+      # Check if the latest commit has changed
+      - name: Check latest commit
+        id: check-commit
+        run: |
+          LATEST_COMMIT=$(git -C roslyn log -1 --format="%H")
+          STORED_COMMIT=$(cat last_commit.txt || echo "")
+          echo "LATEST_COMMIT=${LATEST_COMMIT}" >> $GITHUB_ENV
+          if [ "$LATEST_COMMIT" = "$STORED_COMMIT" ]; then
+            echo "::set-output name=skip::true"
+          else
+            echo "${LATEST_COMMIT}" > last_commit.txt
+          fi
+
+      - name: Get .NET SDK version from global.json
+        if: steps.check-commit.outputs.skip != 'true'
+        run: |
+          DOTNET_VERSION=$(cat source/global.json | jq -r '.sdk.version')
+          echo "DOTNET_VERSION=${DOTNET_VERSION}" >> $GITHUB_ENV
+
+      # If commit has changed, Build based on the platform
+      - name: Build for ${{ matrix.platform }}
+        if: steps.check-commit.outputs.skip != 'true'
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+        run: cd roslyn && ${{ matrix.build_command }}
+
+      - name: Zip for ${{ matrix.platform }}
+        if: steps.check-commit.outputs.skip != 'true'
+        run: zip -r "roslyn-server-${LATEST_COMMIT}-${{ matrix.platform }}.zip" "roslyn/artifacts"
+
+      # Commit the updated commit file
+      - name: Commit and Push
+        if: steps.check-commit.outputs.skip != 'true'
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git add last_commit.txt
+          git commit -m "Update last_commit to ${LATEST_COMMIT}"
+          git push
+
+      # Create a new release and upload the build artifact
+      - name: Create Release and Upload Artifact
+        if: steps.check-commit.outputs.skip != 'true'
+        uses: gh-actions/create-release@v1
+        with:
+          tag_name: ${{ env.LATEST_COMMIT }}
+          release_name: Release ${{ env.LATEST_COMMIT }}
+          body: Automated release for commit ${{ env.LATEST_COMMIT }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload the artifact for current platform
+      - name: Upload Release Asset for ${{ matrix.platform }}
+        if: steps.check-commit.outputs.skip != 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.LATEST_COMMIT }}_${{ matrix.platform }}.zip
+          asset_name: ${{ env.LATEST_COMMIT }}_${{ matrix.platform }}.zip
+          asset_content_type: application/zip
