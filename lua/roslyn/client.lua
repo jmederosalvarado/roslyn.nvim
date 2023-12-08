@@ -52,7 +52,7 @@ local M = {}
 ---@param target string
 ---@param on_attach function
 ---@param capabilities table
-function M.spawn(cmd, target, on_exit, on_attach, capabilities)
+function M.spawn(cmd, target, settings, on_exit, on_attach, capabilities)
 	local data_path = vim.fn.stdpath("data") --[[@as string]]
 	local server_path = vim.fs.joinpath(data_path, "roslyn", "Microsoft.CodeAnalysis.LanguageServer.dll")
 	if not vim.uv.fs_stat(server_path) then
@@ -92,75 +92,7 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 	spawned.id = vim.lsp.start_client({
 		name = "roslyn",
 		capabilities = capabilities,
-		-- settings = {
-		-- 	["csharp|background_analysis"] = {
-		-- 		["dotnet_analyzer_diagnostics_scope"] = nil,
-		-- 		["dotnet_compiler_diagnostics_scope"] = nil,
-		-- 	},
-		-- 	["csharp|code_lens"] = {
-		-- 		["dotnet_enable_references_code_lens"] = nil,
-		-- 		["dotnet_enable_tests_code_lens"] = nil,
-		-- 	},
-		-- 	["csharp|code_style"] = {
-		-- 		["formatting"] = {
-		-- 			["indentation_and_spacing"] = {
-		-- 				["indent_size"] = nil,
-		-- 				["indent_style"] = nil,
-		-- 				["tab_width"] = nil,
-		-- 			},
-		-- 			["new_line"] = {
-		-- 				["end_of_line"] = nil,
-		-- 			},
-		-- 		},
-		-- 	},
-		-- 	["csharp|completion"] = {
-		-- 		["dotnet_provide_regex_completions"] = nil,
-		-- 		["dotnet_show_completion_items_from_unimported_namespaces"] = true,
-		-- 		["dotnet_show_name_completion_suggestions"] = true,
-		-- 	},
-		-- 	["csharp|highlighting"] = {
-		-- 		["dotnet_highlight_related_json_components"] = nil,
-		-- 		["dotnet_highlight_related_regex_components"] = nil,
-		-- 	},
-		-- 	["csharp|implement_type"] = {
-		-- 		["dotnet_insertion_behavior"] = nil,
-		-- 		["dotnet_property_generation_behavior"] = nil,
-		-- 	},
-		-- 	["csharp|inlay_hints"] = {
-		-- 		["csharp_enable_inlay_hints_for_implicit_object_creation"] = nil,
-		-- 		["csharp_enable_inlay_hints_for_implicit_variable_types"] = nil,
-		-- 		["csharp_enable_inlay_hints_for_lambda_parameter_types"] = nil,
-		-- 		["csharp_enable_inlay_hints_for_types"] = nil,
-		-- 		["dotnet_enable_inlay_hints_for_indexer_parameters"] = nil,
-		-- 		["dotnet_enable_inlay_hints_for_literal_parameters"] = nil,
-		-- 		["dotnet_enable_inlay_hints_for_object_creation_parameters"] = nil,
-		-- 		["dotnet_enable_inlay_hints_for_other_parameters"] = nil,
-		-- 		["dotnet_enable_inlay_hints_for_parameters"] = nil,
-		-- 		["dotnet_suppress_inlay_hints_for_parameters_that_differ_only_by_suffix"] = nil,
-		-- 		["dotnet_suppress_inlay_hints_for_parameters_that_match_argument_name"] = nil,
-		-- 		["dotnet_suppress_inlay_hints_for_parameters_that_match_method_intent"] = nil,
-		-- 	},
-		-- 	["csharp|quick_info"] = {
-		-- 		["dotnet_show_remarks_in_quick_info"] = true,
-		-- 	},
-		-- 	["csharp|symbol_search"] = {
-		-- 		["dotnet_search_reference_assemblies"] = nil,
-		-- 	},
-		-- 	["navigation"] = {
-		-- 		["dotnet_navigate_to_decompiled_sources"] = nil,
-		-- 	},
-		-- 	["projects"] = {
-		-- 		["dotnet_binary_log_path"] = nil,
-		-- 		["dotnet_load_in_process"] = nil,
-		-- 	},
-		-- 	["code_style"] = {
-		-- 		["formatting"] = {
-		-- 			["new_line"] = {
-		-- 				["insert_final_newline"] = nil,
-		-- 			},
-		-- 		},
-		-- 	},
-		-- },
+		settings = settings,
 		-- cmd = hacks.wrap_server_cmd(vim.lsp.rpc.connect("127.0.0.1", 8080)),
 		cmd = hacks.wrap_server_cmd(roslyn_lsp_rpc.start_uds(cmd, server_args)),
 		root_dir = vim.fn.getcwd(), ---@diagnostic disable-line: assign-type-mismatch

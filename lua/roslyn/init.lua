@@ -53,6 +53,7 @@ M.server_config = {
 	roslyn_version = "4.8.0-3.23475.7",
 	capabilities = nil,
 	on_attach = nil,
+	settings = nil,
 }
 M.client_by_target = {} ---@type table<string, table|nil>
 M.targets_by_bufnr = {} ---@type table<number, string[]>
@@ -111,7 +112,7 @@ function M.attach_or_spawn(bufnr)
 
 	local client = M.client_by_target[target]
 	if client == nil then
-		client = require("roslyn.client").spawn(M.server_config.dotnet_cmd, target, function()
+		client = require("roslyn.client").spawn(M.server_config.dotnet_cmd, target, M.server_config.settings, function()
 			M.client_by_target[target] = nil
 		end, M.server_config.on_attach, M.server_config.capabilities)
 		if client == nil then
