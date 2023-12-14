@@ -39,5 +39,5 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           name: Roslyn Language Server ${{ github.event.inputs.version }}
-          tag_name: ${{ github.event.inputs.version }}
+          tag_name: latest
           files: roslyn-${{ github.event.inputs.version }}-${{ matrix.rid }}.tar.gz
