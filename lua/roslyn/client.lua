@@ -202,6 +202,9 @@ function M.spawn(cmd, target, on_exit, on_attach, capabilities)
 				vim.notify("Roslyn project initialization complete", vim.log.levels.INFO)
 				spawned:initialize()
 			end,
+            ["workspace/_roslyn_projectHasUnresolvedDependencies"] = function()
+                vim.notify("Detected missing dependencies. Run dotnet restore command.", vim.log.levels.ERROR)
+            end,
 		},
 		on_exit = on_exit,
 	})
