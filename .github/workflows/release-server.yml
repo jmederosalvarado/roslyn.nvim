@@ -8,10 +8,8 @@ on:
         description: 'Version to download and release'
 
 jobs:
-  check-and-build:
+  download:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     strategy:
       matrix:
         rid: ['osx-x64', 'osx-arm64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-x86']
@@ -36,10 +34,33 @@ jobs:
           tar -czvf roslyn-${{ github.event.inputs.version }}-${{ matrix.rid }}.tar.gz
           -C server/out/microsoft.codeanalysis.languageserver.${{ matrix.rid }}/${{ github.event.inputs.version }}/content/LanguageServer/${{ matrix.rid }} .
 
-      # Create a new release and upload the build artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: roslyn-${{ github.event.inputs.version }}-${{ matrix.rid }}.tar.gz
+
+  release:
+    runs-on: ubuntu-latest
+    needs: download
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        id: download
+        uses: actions/download-artifact@v4
+
       - name: Create Release and Upload Artifact
         uses: softprops/action-gh-release@v1
+        working-directory: ${{ steps.download.outputs.download-path }}
         with:
           name: Roslyn Language Server ${{ github.event.inputs.version }}
           tag_name: ${{ github.event.inputs.version }}
-          files: roslyn-${{ github.event.inputs.version }}-${{ matrix.rid }}.tar.gz
+          files: |
+            win-x64/roslyn-${{ github.event.inputs.version }}-win-x64.tar.gz
+            win-x86/roslyn-${{ github.event.inputs.version }}-win-x86.tar.gz
+            osx-x64/roslyn-${{ github.event.inputs.version }}-osx-x64.tar.gz
+            osx-arm64/roslyn-${{ github.event.inputs.version }}-osx-arm64.tar.gz
+            linux-x64/roslyn-${{ github.event.inputs.version }}-linux-x64.tar.gz
+            linux-arm64/roslyn-${{ github.event.inputs.version }}-linux-arm64.tar.gz
