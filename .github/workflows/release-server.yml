@@ -17,26 +17,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          path: roslyn
-          sparse-checkout: server
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          global-json-file: roslyn/server/global.json
+          global-json-file: server/global.json
 
       - name: Download for ${{ matrix.rid }}
-        working-directory: roslyn/server
         run: >
-          dotnet restore
+          dotnet restore ./server
           /p:PackageName=microsoft.codeanalysis.languageserver.${{ matrix.rid }}
           /p:PackageVersion=${{ github.event.inputs.version }}
 
       - name: Package downloaded files
         run: >
           tar -czvf roslyn-${{ github.event.inputs.version }}-${{ matrix.rid }}.tar.gz
-          -C roslyn/server/out/microsoft.codeanalysis.languageserver.osx-arm64/${{ github.event.inputs.version }}/content/LanguageServer/${{ matrix.rid }} .
+          -C server/out/microsoft.codeanalysis.languageserver.${{ matrix.rid }}/${{ github.event.inputs.version }}/content/LanguageServer/${{ matrix.rid }} .
 
       # Create a new release and upload the build artifact
       - name: Create Release and Upload Artifact
