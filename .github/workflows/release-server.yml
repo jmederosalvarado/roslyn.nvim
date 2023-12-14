@@ -1,0 +1,47 @@
+name: Download and Release Roslyn
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: 'Version to download and release'
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: ['osx-x64', 'osx-arm64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-x86']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: roslyn
+          sparse-checkout: server
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          global-json-file: roslyn/server/global.json
+
+      - name: Download for ${{ matrix.rid }}
+        working-directory: roslyn/server
+        run: >
+          dotnet restore
+          /p:PackageName=microsoft.codeanalysis.languageserver.${{ matrix.rid }}
+          /p:PackageVersion=${{ github.event.inputs.version }}
+
+      - name: Package downloaded files
+        run: >
+          tar -czvf roslyn-${{ github.event.inputs.version }}-${{ matrix.rid }}.tar.gz
+          -C roslyn/server/out/microsoft.codeanalysis.languageserver.osx-arm64/${{ github.event.inputs.version }}/content/LanguageServer/${{ matrix.rid }} .
+
+      # Create a new release and upload the build artifact
+      - name: Create Release and Upload Artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Roslyn Language Server ${{ github.event.inputs.version }}
+          tag_name: ${{ github.event.inputs.version }}
+          files: roslyn-${{ github.event.inputs.version }}-${{ matrix.rid }}.tar.gz
