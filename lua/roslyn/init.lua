@@ -50,7 +50,7 @@ local M = {}
 
 M.server_config = {
 	dotnet_cmd = "dotnet",
-	roslyn_version = "4.8.0-3.23475.7",
+	roslyn_version = "4.9.0-3.23604.10",
 	capabilities = nil,
 	on_attach = nil,
 }
