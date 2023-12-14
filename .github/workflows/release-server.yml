@@ -6,6 +6,7 @@ on:
       version:
         type: string
         description: 'Version to download and release'
+        default: '4.9.0-3.23604.10'
 
 jobs:
   download:
@@ -49,7 +50,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
 
       - name: Create Release and Upload Artifact
         uses: softprops/action-gh-release@v1
