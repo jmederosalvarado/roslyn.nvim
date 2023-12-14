@@ -103,15 +103,16 @@ function M.install(dotnet_cmd, roslyn_pkg_version)
 		download_path,
 		"/p:PackageName=" .. roslyn_pkg_name,
 		"/p:PackageVersion=" .. roslyn_pkg_version,
-	}, { stdout = false }, function(obj)
-		if obj.code ~= 0 then
-			vim.notify(
-				"Failed to restore Roslyn package: " .. vim.inspect(obj),
-				vim.log.levels.ERROR,
-				{ title = "Roslyn" }
-			)
-		end
-	end):wait()
+	}, { stdout = false }, function(obj) end):wait()
+
+	if waited.code ~= 0 then
+		vim.notify(
+			"Failed to restore Roslyn package: " .. vim.inspect(waited),
+			vim.log.levels.ERROR,
+			{ title = "Roslyn" }
+		)
+		return
+	end
 
 	vim.fn.rename(
 		vim.fs.joinpath(download_path, "out", roslyn_pkg_name, roslyn_pkg_version, "content", "LanguageServer", rid),
