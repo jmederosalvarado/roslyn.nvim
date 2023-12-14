@@ -35,10 +35,11 @@ jobs:
           -C server/out/microsoft.codeanalysis.languageserver.${{ matrix.rid }}/${{ github.event.inputs.version }}/content/LanguageServer/${{ matrix.rid }} .
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.rid }}
           path: roslyn-${{ github.event.inputs.version }}-${{ matrix.rid }}.tar.gz
+          if-no-files-found: error
 
   release:
     runs-on: ubuntu-latest
@@ -48,7 +49,6 @@ jobs:
 
     steps:
       - name: Download artifacts
-        id: download
         uses: actions/download-artifact@v4
 
       - name: Create Release and Upload Artifact
@@ -57,9 +57,9 @@ jobs:
           name: Roslyn Language Server ${{ github.event.inputs.version }}
           tag_name: ${{ github.event.inputs.version }}
           files: |
-            ${{ steps.download.outputs.download-path }}/win-x64/roslyn-${{ github.event.inputs.version }}-win-x64.tar.gz
-            ${{ steps.download.outputs.download-path }}/win-x86/roslyn-${{ github.event.inputs.version }}-win-x86.tar.gz
-            ${{ steps.download.outputs.download-path }}/osx-x64/roslyn-${{ github.event.inputs.version }}-osx-x64.tar.gz
-            ${{ steps.download.outputs.download-path }}/osx-arm64/roslyn-${{ github.event.inputs.version }}-osx-arm64.tar.gz
-            ${{ steps.download.outputs.download-path }}/linux-x64/roslyn-${{ github.event.inputs.version }}-linux-x64.tar.gz
-            ${{ steps.download.outputs.download-path }}/linux-arm64/roslyn-${{ github.event.inputs.version }}-linux-arm64.tar.gz
+            win-x64/roslyn-${{ github.event.inputs.version }}-win-x64.tar.gz
+            win-x86/roslyn-${{ github.event.inputs.version }}-win-x86.tar.gz
+            osx-x64/roslyn-${{ github.event.inputs.version }}-osx-x64.tar.gz
+            osx-arm64/roslyn-${{ github.event.inputs.version }}-osx-arm64.tar.gz
+            linux-x64/roslyn-${{ github.event.inputs.version }}-linux-x64.tar.gz
+            linux-arm64/roslyn-${{ github.event.inputs.version }}-linux-arm64.tar.gz
