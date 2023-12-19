@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rid: ['osx-x64', 'osx-arm64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-x86']
+        rid: ['osx-x64', 'osx-arm64', 'linux-x64', 'linux-arm64', 'alpine-x64', 'alpine-arm64', 'win-x64', 'win-x86', 'win-arm64']
 
     steps:
       - name: Checkout
@@ -60,7 +60,10 @@ jobs:
           files: |
             win-x64/roslyn-${{ github.event.inputs.version }}-win-x64.tar.gz
             win-x86/roslyn-${{ github.event.inputs.version }}-win-x86.tar.gz
+            win-arm64/roslyn-${{ github.event.inputs.version }}-win-arm64.tar.gz
             osx-x64/roslyn-${{ github.event.inputs.version }}-osx-x64.tar.gz
             osx-arm64/roslyn-${{ github.event.inputs.version }}-osx-arm64.tar.gz
             linux-x64/roslyn-${{ github.event.inputs.version }}-linux-x64.tar.gz
             linux-arm64/roslyn-${{ github.event.inputs.version }}-linux-arm64.tar.gz
+            alpine-x64/roslyn-${{ github.event.inputs.version }}-alpine-x64.tar.gz
+            alpine-arm64/roslyn-${{ github.event.inputs.version }}-alpine-arm64.tar.gz
