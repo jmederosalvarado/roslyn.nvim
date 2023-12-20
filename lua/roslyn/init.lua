@@ -1,4 +1,4 @@
-local util = require("lspconfig.util")
+local util = require("roslyn.util")
 
 local function set_selected_target(bufnr, target)
 	vim.g["RoslynSelectedTarget" .. bufnr] = target
@@ -15,33 +15,21 @@ local function find_possible_targets(fname)
 	local prefered_target = nil
 	local targets = {}
 
-	local sln_dir = util.root_pattern("*sln")(fname)
-	if sln_dir then
-		vim.list_extend(targets, vim.fn.glob(util.path.join(sln_dir, "*.sln"), true, true))
+	for dir in vim.fn.parents(fname) do
+		for _, sln in ipairs(vim.fn.glob(vim.fs.joinpath(dir, "*.sln"), true, true)) do
+			local sln_stat = vim.uv.fs_stat(sln)
+			if sln_stat and sln_stat.type == "file" then
+				table.insert(targets, sln)
+			end
+		end
+		if #targets > 0 then
+			break
+		end
 	end
 
 	if #targets == 1 then
 		prefered_target = targets[1]
 	end
-
-	-- local csproj_dir = util.root_pattern("*csproj")(fname)
-	-- if csproj_dir then
-	-- 	table.insert(targets, csproj_dir)
-	-- end
-	--
-	-- local git_dir = util.root_pattern(".git")(fname)
-	-- if git_dir and not vim.tbl_contains(targets, git_dir) then
-	-- 	table.insert(targets, git_dir)
-	-- end
-	--
-	-- local cwd = vim.fn.getcwd()
-	-- if util.path.is_descendant(cwd, fname) and not vim.tbl_contains(targets, cwd) then
-	-- 	table.insert(targets, cwd)
-	-- end
-	--
-	-- if #targets == 1 then
-	-- 	prefered_target = targets[1]
-	-- end
 
 	return targets, prefered_target
 end
@@ -60,7 +48,7 @@ M.targets_by_bufnr = {} ---@type table<number, string[]>
 
 function M.init_buf_targets(bufnr)
 	bufnr = bufnr or vim.api.nvim_get_current_buf()
-	if vim.api.nvim_buf_get_option(bufnr, "buftype") == "nofile" then
+	if vim.api.nvim_get_option_value("buftype", { buf = bufnr }) == "nofile" then
 		return
 	end
 
@@ -73,7 +61,7 @@ function M.init_buf_targets(bufnr)
 		return
 	end
 
-	local bufpath = util.path.sanitize(bufname)
+	local bufpath = util.sanitize(bufname)
 	local targets, prefered_target = find_possible_targets(bufpath)
 	if prefered_target then
 		set_selected_target(bufnr, prefered_target)
