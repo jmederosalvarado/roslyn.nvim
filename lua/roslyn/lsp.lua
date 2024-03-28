@@ -313,7 +313,11 @@ function Client:request(method, params, callback, notify_reply_callback)
 	local notify_reply_callbacks = self.notify_reply_callbacks
 	if result then
 		if message_callbacks then
-			message_callbacks[message_id] = schedule_wrap(callback)
+            if (method == "textDocument/hover") then
+                message_callbacks[message_id] = schedule_wrap(self.process_hover_response(self, callback))
+            else
+                message_callbacks[message_id] = schedule_wrap(callback)
+            end
 		else
 			return false
 		end
@@ -324,6 +328,22 @@ function Client:request(method, params, callback, notify_reply_callback)
 	else
 		return false
 	end
+end
+
+---@private
+---@return fun(err: lsp.ResponseError|nil, result: any)
+function Client:process_hover_response(callback)
+    return function(err, result)
+        if (result.contents.kind == "markdown") then
+            local markdown = result.contents.value
+            markdown = markdown:gsub("```csharp", "```c_sharp")
+            markdown = markdown:gsub("&nbsp;", " ")
+            markdown = markdown:gsub("\\" , "")
+
+            result.contents.value = markdown
+        end
+        callback(err, result)
+    end
 end
 
 ---@private

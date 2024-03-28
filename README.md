@@ -9,6 +9,7 @@ Ideally I would like to depend on the Dotnet SDK and everything else to be optio
 - Dotnet SDK (Tested with .net7).
 - [`nvim-lspconfig`](https://github.com/neovim/nvim-lspconfig) for some path utility functions.
 - Neovim nightly required. Tested on `831d662ac6756cab4fed6a9b394e68933b5fe325` but anything after August 2023 would probably work.
+- `markdown_inline` tree-sitter parser for good hover support.
 
 ## Setup
 
