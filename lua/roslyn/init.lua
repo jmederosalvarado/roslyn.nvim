@@ -54,7 +54,7 @@ M.server_config = {
 	capabilities = nil,
 	on_attach = nil,
 	settings = nil,
-    custom_lsp_dll_path = nil,
+	custom_lsp_dll_path = nil,
 }
 M.client_by_target = {} ---@type table<string, table|nil>
 M.targets_by_bufnr = {} ---@type table<number, string[]>
