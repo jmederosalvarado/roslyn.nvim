@@ -20,6 +20,7 @@ require("roslyn").setup({
     roslyn_version = "4.8.0-3.23475.7", -- this is the default
     on_attach = <on_attach you would pass to nvim-lspconfig>, -- required
     capabilities = <capabilities you would pass to nvim-lspconfig>, -- required
+    roslyn_lsp_dll_path  = <path to Microsoft.CodeAnalysis.LanguageServer.dll>, -- alternative to roslyn_version
 })
 ```
 
