@@ -54,7 +54,7 @@ M.server_config = {
 	capabilities = nil,
 	on_attach = nil,
 	settings = nil,
-	custom_lsp_dll_path = nil,
+	roslyn_lsp_dll_path = nil,
 }
 M.client_by_target = {} ---@type table<string, table|nil>
 M.targets_by_bufnr = {} ---@type table<number, string[]>
@@ -115,7 +115,7 @@ function M.attach_or_spawn(bufnr)
 	if client == nil then
 		client = require("roslyn.client").spawn(M.server_config.dotnet_cmd, target, M.server_config.settings, function()
 			M.client_by_target[target] = nil
-		end, M.server_config.on_attach, M.server_config.capabilities, M.server_config.custom_lsp_dll_path)
+		end, M.server_config.on_attach, M.server_config.capabilities, M.server_config.roslyn_lsp_dll_path)
 		if client == nil then
 			vim.notify("Failed to start Roslyn client for " .. vim.fn.fnamemodify(target, ":~:."), vim.log.levels.ERROR)
 			return

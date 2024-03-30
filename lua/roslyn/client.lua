@@ -52,9 +52,9 @@ local M = {}
 ---@param target string
 ---@param on_attach function
 ---@param capabilities table
----@param custom_lsp_dll_path (string|nil)
-function M.spawn(cmd, target, settings, on_exit, on_attach, capabilities, custom_lsp_dll_path)
-    local server_path = custom_lsp_dll_path 
+---@param roslyn_lsp_dll_path (string|nil)
+function M.spawn(cmd, target, settings, on_exit, on_attach, capabilities, roslyn_lsp_dll_path)
+    local server_path = roslyn_lsp_dll_path 
     if not server_path then
         local data_path = vim.fn.stdpath("data") --[[@as string]]
         server_path = vim.fs.joinpath(data_path, "roslyn", "Microsoft.CodeAnalysis.LanguageServer.dll")
