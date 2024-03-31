@@ -334,7 +334,10 @@ end
 ---@return fun(err: lsp.ResponseError|nil, result: any)
 function Client:process_hover_response(callback)
     return function(err, result)
-        if (result.contents.kind == "markdown") then
+        if (result ~= nil
+            and result.contents.kind == "markdown"
+            and result.contents.value ~= nil
+            and result.contents.value ~= "") then
             local markdown = result.contents.value
             markdown = markdown:gsub("```csharp", "```c_sharp")
             markdown = markdown:gsub("&nbsp;", " ")
