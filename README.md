@@ -53,6 +53,89 @@ require("roslyn").setup({
 })
 ```
 
+### Settings
+
+Settings can be passed to the setup function. The following settings are available [vscode-csharp unit tests link](https://github.com/dotnet/vscode-csharp/blob/main/test/unitTests/configurationMiddleware.test.ts):
+
+```lua
+code_style.formatting.new_line.insert_final_newline
+
+csharp|background_analysis.dotnet_analyzer_diagnostics_scope
+csharp|background_analysis.dotnet_compiler_diagnostics_scope
+csharp|code_lens.dotnet_enable_references_code_lens
+csharp|code_lens.dotnet_enable_tests_code_lens
+csharp|code_style.formatting.indentation_and_spacing.indent_size
+csharp|code_style.formatting.indentation_and_spacing.indent_style
+csharp|code_style.formatting.indentation_and_spacing.tab_width
+csharp|code_style.formatting.new_line.end_of_line
+csharp|completion.dotnet_provide_regex_completions
+csharp|completion.dotnet_show_completion_items_from_unimported_namespaces
+csharp|completion.dotnet_show_name_completion_suggestions
+csharp|highlighting.dotnet_highlight_related_json_components
+csharp|highlighting.dotnet_highlight_related_regex_components
+csharp|implement_type.dotnet_insertion_behavior
+csharp|implement_type.dotnet_property_generation_behavior
+csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_object_creation
+csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_variable_types
+csharp|inlay_hints.csharp_enable_inlay_hints_for_lambda_parameter_types
+csharp|inlay_hints.csharp_enable_inlay_hints_for_types
+csharp|inlay_hints.dotnet_enable_inlay_hints_for_indexer_parameters
+csharp|inlay_hints.dotnet_enable_inlay_hints_for_literal_parameters
+csharp|inlay_hints.dotnet_enable_inlay_hints_for_object_creation_parameters
+csharp|inlay_hints.dotnet_enable_inlay_hints_for_other_parameters
+csharp|inlay_hints.dotnet_enable_inlay_hints_for_parameters
+csharp|inlay_hints.dotnet_suppress_inlay_hints_for_parameters_that_differ_only_by_suffix
+csharp|inlay_hints.dotnet_suppress_inlay_hints_for_parameters_that_match_argument_name
+csharp|inlay_hints.dotnet_suppress_inlay_hints_for_parameters_that_match_method_intent
+csharp|quick_info.dotnet_show_remarks_in_quick_info
+csharp|symbol_search.dotnet_search_reference_assemblies
+
+mystery_language|Highlighting.dotnet_highlight_related_json_components
+mystery_language|background_analysis.dotnet_analyzer_diagnostics_scope
+mystery_language|background_analysis.dotnet_compiler_diagnostics_scope
+mystery_language|code_lens.dotnet_enable_references_code_lens
+mystery_language|code_lens.dotnet_enable_tests_code_lens
+mystery_language|completion.dotnet_provide_regex_completions
+mystery_language|completion.dotnet_show_completion_items_from_unimported_namespaces
+mystery_language|completion.dotnet_show_name_completion_suggestions
+mystery_language|highlighting.dotnet_highlight_related_regex_components
+mystery_language|implement_type.dotnet_insertion_behavior
+mystery_language|implement_type.dotnet_property_generation_behavior
+mystery_language|quick_info.dotnet_show_remarks_in_quick_info
+mystery_language|symbol_search.dotnet_search_reference_assemblies
+
+navigation.dotnet_navigate_to_decompiled_sources
+
+text_editor.tab_width
+````
+
+Example enabling inlay hints:
+
+```lua
+require("roslyn").setup({
+    dotnet_cmd = "dotnet", -- this is the default
+    roslyn_version = "4.8.0-3.23475.7", -- this is the default
+    on_attach = <on_attach you would pass to nvim-lspconfig>, -- required
+    capabilities = <capabilities you would pass to nvim-lspconfig>, -- required
+    settings = {
+      ["csharp|inlay_hints"] = {
+        csharp_enable_inlay_hints_for_implicit_object_creation = true,
+        csharp_enable_inlay_hints_for_implicit_variable_types = true,
+        csharp_enable_inlay_hints_for_lambda_parameter_types = true,
+        csharp_enable_inlay_hints_for_types = true,
+        dotnet_enable_inlay_hints_for_indexer_parameters = true,
+        dotnet_enable_inlay_hints_for_literal_parameters = true,
+        dotnet_enable_inlay_hints_for_object_creation_parameters = true,
+        dotnet_enable_inlay_hints_for_other_parameters = true,
+        dotnet_enable_inlay_hints_for_parameters = true,
+        dotnet_suppress_inlay_hints_for_parameters_that_differ_only_by_suffix = true,
+        dotnet_suppress_inlay_hints_for_parameters_that_match_argument_name = true,
+        dotnet_suppress_inlay_hints_for_parameters_that_match_method_intent = true,
+      },
+    },
+})
+```
+
 ## Usage
 
 1. The plugin will look for a `.sln` file in the parent
