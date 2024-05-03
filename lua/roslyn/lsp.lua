@@ -124,53 +124,6 @@ M.client_errors = {
 
 M.client_errors = vim.tbl_add_reverse_lookup(M.client_errors)
 
---- Constructs an error message from an LSP error object.
----
----@param err (table) The error object
----@returns (string) The formatted error message
-function M.format_rpc_error(err)
-	validate({
-		err = { err, "t" },
-	})
-
-	-- There is ErrorCodes in the LSP specification,
-	-- but in ResponseError.code it is not used and the actual type is number.
-	local code
-	if protocol.ErrorCodes[err.code] then
-		code = string.format("code_name = %s,", protocol.ErrorCodes[err.code])
-	else
-		code = string.format("code_name = unknown, code = %s,", err.code)
-	end
-
-	local message_parts = { "RPC[Error]", code }
-	if err.message then
-		table.insert(message_parts, "message =")
-		table.insert(message_parts, string.format("%q", err.message))
-	end
-	if err.data then
-		table.insert(message_parts, "data =")
-		table.insert(message_parts, vim.inspect(err.data))
-	end
-	return table.concat(message_parts, " ")
-end
-
---- Creates an RPC response object/table.
----
----@param code integer RPC error code defined in `vim.lsp.protocol.ErrorCodes`
----@param message string|nil arbitrary message to send to server
----@param data any|nil arbitrary data to send to server
-function M.rpc_response_error(code, message, data)
-	-- TODO should this error or just pick a sane error (like InternalError)?
-	local code_name = assert(protocol.ErrorCodes[code], "Invalid RPC error code")
-	return setmetatable({
-		code = code,
-		message = message or code_name,
-		data = data,
-	}, {
-		__tostring = M.format_rpc_error,
-	})
-end
-
 local default_dispatchers = {}
 
 ---@private
@@ -191,7 +144,7 @@ end
 ---@return table `vim.lsp.protocol.ErrorCodes.MethodNotFound`
 function default_dispatchers.server_request(method, params)
 	local _ = log.debug() and log.debug("server_request", method, params)
-	return nil, M.rpc_response_error(protocol.ErrorCodes.MethodNotFound)
+	return nil, vim.lsp.rpc.rpc_response_error(protocol.ErrorCodes.MethodNotFound)
 end
 
 ---@private
@@ -313,7 +266,11 @@ function Client:request(method, params, callback, notify_reply_callback)
 	local notify_reply_callbacks = self.notify_reply_callbacks
 	if result then
 		if message_callbacks then
-			message_callbacks[message_id] = schedule_wrap(callback)
+			if method == "textDocument/hover" then
+				message_callbacks[message_id] = schedule_wrap(self.process_hover_response(self, callback))
+			else
+				message_callbacks[message_id] = schedule_wrap(callback)
+			end
 		else
 			return false
 		end
@@ -323,6 +280,22 @@ function Client:request(method, params, callback, notify_reply_callback)
 		return result, message_id
 	else
 		return false
+	end
+end
+
+---@private
+---@return fun(err: lsp.ResponseError|nil, result: any)
+function Client:process_hover_response(callback)
+	return function(err, result)
+		if
+			result ~= nil
+			and result.contents.kind == "markdown"
+			and result.contents.value ~= nil
+			and result.contents.value ~= ""
+		then
+			result.contents.value = result.contents.value:gsub("```csharp", "```c_sharp")
+		end
+		callback(err, result)
 	end
 end
 
@@ -397,7 +370,7 @@ function Client:handle_body(body)
 					end
 				else
 					-- On an exception, result will contain the error message.
-					err = M.rpc_response_error(protocol.ErrorCodes.InternalError, result)
+					err = vim.lsp.rpc.rpc_response_error(protocol.ErrorCodes.InternalError, result)
 					result = nil
 				end
 				self:send_response(decoded.id, err, result)
@@ -450,7 +423,7 @@ function Client:handle_body(body)
 			})
 			if decoded.error then
 				decoded.error = setmetatable(decoded.error, {
-					__tostring = M.format_rpc_error,
+					__tostring = vim.lsp.rpc.format_rpc_error,
 				})
 			end
 			self:try_call(M.client_errors.SERVER_RESULT_CALLBACK_ERROR, callback, decoded.error, decoded.result)
@@ -521,30 +494,26 @@ local function public_client(client)
 end
 
 local function merge_dispatchers(dispatchers)
-	if dispatchers then
-		local user_dispatchers = dispatchers
-		dispatchers = {}
-		for dispatch_name, default_dispatch in pairs(default_dispatchers) do
-			local user_dispatcher = user_dispatchers[dispatch_name]
-			if user_dispatcher then
-				if type(user_dispatcher) ~= "function" then
-					error(string.format("dispatcher.%s must be a function", dispatch_name))
-				end
-				-- server_request is wrapped elsewhere.
-				if
-					not (dispatch_name == "server_request" or dispatch_name == "on_exit") -- TODO this blocks the loop exiting for some reason.
-				then
-					user_dispatcher = schedule_wrap(user_dispatcher)
-				end
-				dispatchers[dispatch_name] = user_dispatcher
-			else
-				dispatchers[dispatch_name] = default_dispatch
-			end
-		end
-	else
-		dispatchers = default_dispatchers
+	if not dispatchers then
+		return default_dispatchers
 	end
-	return dispatchers
+	---@diagnostic disable-next-line: no-unknown
+	for name, fn in pairs(dispatchers) do
+		if type(fn) ~= "function" then
+			error(string.format("dispatcher.%s must be a function", name))
+		end
+	end
+	---@type vim.lsp.rpc.Dispatchers
+	local merged = {
+		notification = (
+			dispatchers.notification and vim.schedule_wrap(dispatchers.notification)
+			or default_dispatchers.notification
+		),
+		on_error = (dispatchers.on_error and vim.schedule_wrap(dispatchers.on_error) or default_dispatchers.on_error),
+		on_exit = dispatchers.on_exit or default_dispatchers.on_exit,
+		server_request = dispatchers.server_request or default_dispatchers.server_request,
+	}
+	return merged
 end
 
 --- Starts an LSP server process and create an LSP RPC client object to
@@ -581,7 +550,7 @@ function M.start_uds(cmd, cmd_args, extra_spawn_params)
 		local sysobj ---@type vim.SystemObj
 		local write_queue = {}
 		-- no idea what the ipc arg is for, but set to false for now
-		local pipe, err_name, err_msg = uv.new_pipe(false)
+		local pipe, _, err_msg = uv.new_pipe(false)
 		if not pipe then
 			error(string.format("Failed to create pipe: %s", err_msg))
 		end
