@@ -1,22 +1,5 @@
 local M = {}
 
--- TODO: Looks like this isn't needed?
-function M.with_fixed_diagnostics_tags(handler)
-	return function(err, res, ctx, config)
-		local diagnostics = res and res.items or {}
-		for _, diagnostic in ipairs(diagnostics) do
-			if diagnostic.tags ~= nil then
-				diagnostic.tags = vim.tbl_filter(function(tag)
-					return tag == vim.lsp.protocol.DiagnosticTag.Unnecessary
-						and tag == vim.lsp.protocol.DiagnosticTag.Deprecated
-				end, diagnostic.tags)
-			end
-		end
-		return handler(err, res, ctx, config)
-	end
-end
-
--- TODO: This is probably needed for now...
 function M.with_filtered_watchers(handler)
 	return function(err, res, ctx, config)
 		for _, reg in ipairs(res.registrations) do

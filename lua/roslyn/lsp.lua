@@ -73,6 +73,14 @@ local function request_parser_loop()
 			-- be searching for.
 			-- TODO(ashkan) I'd like to remove this, but it seems permanent :(
 			local buffer_start = buffer:find(header_start_pattern)
+			if not buffer_start then
+				error(
+					string.format(
+						"Headers were expected, a different response was received. The server response was '%s'.",
+						buffer
+					)
+				)
+			end
 			local headers = parse_headers(buffer:sub(buffer_start, start - 1))
 			local content_length = headers.content_length
 			-- Use table instead of just string to buffer the message. It prevents
@@ -112,7 +120,7 @@ local M = {}
 
 --- Mapping of error codes used by the client
 --- @nodoc
-M.client_errors = {
+local client_errors = {
 	INVALID_SERVER_MESSAGE = 1,
 	INVALID_SERVER_JSON = 2,
 	NO_RESULT_CALLBACK_FOUND = 3,
@@ -122,7 +130,12 @@ M.client_errors = {
 	SERVER_RESULT_CALLBACK_ERROR = 7,
 }
 
-M.client_errors = vim.tbl_add_reverse_lookup(M.client_errors)
+--- @type table<string|integer, string|integer>
+--- @nodoc
+M.client_errors = vim.deepcopy(client_errors)
+for k, v in pairs(client_errors) do
+	M.client_errors[v] = k
+end
 
 local default_dispatchers = {}
 
@@ -206,7 +219,6 @@ end
 ---@class RpcClient
 local Client = {}
 
----@private
 function Client:encode_and_send(payload)
 	local _ = log.debug() and log.debug("rpc.send", payload)
 	if self.transport.is_closing() then
@@ -217,7 +229,6 @@ function Client:encode_and_send(payload)
 	return true
 end
 
----@private
 --- Sends a notification to the LSP server.
 ---@param method (string) The invoked LSP method
 ---@param params (any): Parameters for the invoked LSP method
@@ -230,7 +241,6 @@ function Client:notify(method, params)
 	})
 end
 
----@private
 --- sends an error object to the remote LSP process.
 function Client:send_response(request_id, err, result)
 	return self:encode_and_send({
@@ -241,7 +251,6 @@ function Client:send_response(request_id, err, result)
 	})
 end
 
----@private
 --- Sends a request to the LSP server and runs {callback} upon response.
 ---
 ---@param method (string) The invoked LSP method
@@ -299,7 +308,6 @@ function Client:process_hover_response(callback)
 	end
 end
 
----@private
 function Client:on_error(errkind, ...)
 	assert(M.client_errors[errkind])
 	-- TODO what to do if this fails?
@@ -324,7 +332,6 @@ end
 -- time and log them. This would require storing the timestamp. I could call
 -- them with an error then, perhaps.
 
----@private
 function Client:handle_body(body)
 	local ok, decoded = pcall(vim.json.decode, body, { luanil = { object = true } })
 	if not ok then
