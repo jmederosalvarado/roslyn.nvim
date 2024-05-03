@@ -36,7 +36,6 @@ end
 function RoslynClient.new(target)
 	return setmetatable({
 		target = target,
-
 		id = nil,
 		_bufnrs = {},
 		_initialized = false,
@@ -48,16 +47,16 @@ end
 local M = {}
 
 ---Creates a new Roslyn lsp server
----@param cmd string
 ---@param target string
----@param on_attach function
 ---@param capabilities table
-function M.spawn(cmd, target, settings, on_exit, on_attach, capabilities)
+function M.spawn(target, on_exit, capabilities)
 	local data_path = vim.fn.stdpath("data") --[[@as string]]
 	local server_path = vim.fs.joinpath(data_path, "roslyn", "Microsoft.CodeAnalysis.LanguageServer.dll")
 	if not vim.uv.fs_stat(server_path) then
+		-- Either install it via vscode, and move it from ~/.vscode/extensions/ms-dotnettools.csharp-2.28.8-darwin-arm64/.roslyn to ~/.local/share/nvim/roslyn
+		-- Or install it another way manually or something
 		vim.notify_once(
-			"Roslyn LSP server not installed. Run CSInstallRoslyn to install.",
+			string.format("Roslyn LSP server not found. Looking for %s", server_path),
 			vim.log.levels.ERROR,
 			{ title = "Roslyn" }
 		)
@@ -78,24 +77,22 @@ function M.spawn(cmd, target, settings, on_exit, on_attach, capabilities)
 
 	local target_uri = vim.uri_from_fname(target)
 
-	-- capabilities = vim.tbl_deep_extend("force", capabilities, {
-	-- 	workspace = {
-	-- 		didChangeWatchedFiles = {
-	-- 			dynamicRegistration = false,
-	-- 		},
-	-- 	},
-	-- })
-
 	local spawned = RoslynClient.new(target)
 
-	---@diagnostic disable-next-line: missing-fields
+	-- HACK: Roslyn requires the dynamicRegistration to be set to support diagnostics for some reason
+	capabilities = vim.tbl_deep_extend("force", capabilities or {}, {
+		textDocument = {
+			diagnostic = {
+				dynamicRegistration = true,
+			},
+		},
+	})
+
 	spawned.id = vim.lsp.start_client({
 		name = "roslyn",
 		capabilities = capabilities,
-		settings = settings,
-		-- cmd = hacks.wrap_server_cmd(vim.lsp.rpc.connect("127.0.0.1", 8080)),
-		cmd = hacks.wrap_server_cmd(roslyn_lsp_rpc.start_uds(cmd, server_args)),
-		root_dir = vim.fn.getcwd(), ---@diagnostic disable-line: assign-type-mismatch
+		cmd = roslyn_lsp_rpc.start_uds("dotnet", server_args),
+		root_dir = vim.uv.cwd(),
 		on_init = function(client)
 			vim.notify(
 				"Roslyn client initialized for target " .. vim.fn.fnamemodify(target, ":~:."),
@@ -106,27 +103,13 @@ function M.spawn(cmd, target, settings, on_exit, on_attach, capabilities)
 				["solution"] = target_uri,
 			})
 		end,
-		on_attach = vim.schedule_wrap(function(client, bufnr)
-			on_attach(client, bufnr)
-
-			-- vim.api.nvim_buf_attach(bufnr, false, {
-			--     on_lines = function(_, bufnr, changedtick, firstline, lastline, new_lastline)
-			--         -- we are only interested in one character insertions
-			--         if firstline ~= lastline or new_lastline ~= lastline then
-			--             return
-			--         end
-			--
-			--         -- https://github.com/dotnet/vscode-csharp/blob/main/src/lsptoolshost/onAutoInsert.ts
-			--     end,
-			-- })
-		end),
 		handlers = {
-			[vim.lsp.protocol.Methods.textDocument_publishDiagnostics] = hacks.with_fixed_diagnostics_tags(
-				vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics]
-			),
-			[vim.lsp.protocol.Methods.textDocument_diagnostic] = hacks.with_fixed_diagnostics_tags(
-				vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_diagnostic]
-			),
+			-- [vim.lsp.protocol.Methods.textDocument_publishDiagnostics] = hacks.with_fixed_diagnostics_tags(
+			-- 	vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_publishDiagnostics]
+			-- ),
+			-- [vim.lsp.protocol.Methods.textDocument_diagnostic] = hacks.with_fixed_diagnostics_tags(
+			-- 	vim.lsp.handlers[vim.lsp.protocol.Methods.textDocument_diagnostic]
+			-- ),
 			[vim.lsp.protocol.Methods.client_registerCapability] = hacks.with_filtered_watchers(
 				vim.lsp.handlers[vim.lsp.protocol.Methods.client_registerCapability]
 			),
@@ -134,10 +117,10 @@ function M.spawn(cmd, target, settings, on_exit, on_attach, capabilities)
 				vim.notify("Roslyn project initialization complete", vim.log.levels.INFO)
 				spawned:initialize()
 			end,
-            ["workspace/_roslyn_projectHasUnresolvedDependencies"] = function()
-                vim.notify("Detected missing dependencies. Run dotnet restore command.", vim.log.levels.ERROR)
-                return vim.NIL
-            end,
+			["workspace/_roslyn_projectHasUnresolvedDependencies"] = function()
+				vim.notify("Detected missing dependencies. Run dotnet restore command.", vim.log.levels.ERROR)
+				return vim.NIL
+			end,
 		},
 		on_exit = on_exit,
 	})

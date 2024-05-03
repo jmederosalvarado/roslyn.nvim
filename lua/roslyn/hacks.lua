@@ -57,17 +57,6 @@ function M.wrap_server_cmd(cmd_fn)
 	end
 end
 
-function M.fix_diagnostics_tags(diagnostics)
-	for _, diagnostic in ipairs(diagnostics) do
-		if diagnostic.tags ~= nil then
-			diagnostic.tags = vim.tbl_filter(function(tag)
-				return tag == vim.lsp.protocol.DiagnosticTag.Unnecessary
-					and tag == vim.lsp.protocol.DiagnosticTag.Deprecated
-			end, diagnostic.tags)
-		end
-	end
-end
-
 function M.with_fixed_diagnostics_tags(handler)
 	return function(err, res, ctx, config)
 		local diagnostics = res and res.items or {}
