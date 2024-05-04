@@ -1,9 +1,5 @@
 local hacks = require("roslyn.hacks")
 
-local server_config = {
-	capabilities = nil,
-}
-
 local function bufname_valid(bufname)
 	return bufname:match("^/")
 		or bufname:match("^[a-zA-Z]:")
@@ -11,17 +7,10 @@ local function bufname_valid(bufname)
 		or bufname:match("^tarfile:")
 end
 
-local function lsp_start(target)
+local function lsp_start(target, server_config)
 	vim.lsp.start({
 		name = "roslyn",
-		-- HACK: Roslyn requires the dynamicRegistration to be set to support diagnostics for some reason
-		capabilities = vim.tbl_deep_extend("force", server_config.capabilities or {}, {
-			textDocument = {
-				diagnostic = {
-					dynamicRegistration = true,
-				},
-			},
-		}),
+		capabilities = server_config.capabilities,
 		cmd = require("roslyn.lsp").start_uds("dotnet", {
 			vim.fs.joinpath(
 				vim.fn.stdpath("data") --[[@as string]],
@@ -55,7 +44,7 @@ end
 
 -- Assigns the default capabilities from cmp if installed, and the capabilities from neovim
 -- Merges it in with any user configured capabilities if provided
-local function merge_config(config)
+local function get_default_capabilities()
 	local ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
 	local capabilities = ok
 			and vim.tbl_deep_extend(
@@ -65,14 +54,24 @@ local function merge_config(config)
 			)
 		or vim.lsp.protocol.make_client_capabilities()
 
-	server_config.capabilities = capabilities
-	server_config = vim.tbl_deep_extend("force", server_config, config or {})
+	-- HACK: Roslyn requires the dynamicRegistration to be set to support diagnostics for some reason
+	return vim.tbl_deep_extend("force", capabilities, {
+		textDocument = {
+			diagnostic = {
+				dynamicRegistration = true,
+			},
+		},
+	})
 end
 
 local M = {}
 
 function M.setup(config)
-	server_config = merge_config(config)
+	local default_config = {
+		capabilities = get_default_capabilities(),
+	}
+
+	local server_config = vim.tbl_deep_extend("force", default_config, config or {})
 
 	vim.api.nvim_create_autocmd("FileType", {
 		group = vim.api.nvim_create_augroup("Roslyn", { clear = true }),
@@ -91,11 +90,13 @@ function M.setup(config)
 			local targets = sln_dir and vim.fn.glob(vim.fs.joinpath(sln_dir, "*.sln"), true, true) or {}
 
 			if #targets == 1 then
-				return lsp_start(targets[1])
+				lsp_start(targets[1], server_config)
 			elseif #targets > 1 then
 				vim.notify("Multiple targets found. Use `CSTarget` to select target for buffer", vim.log.levels.INFO)
 				vim.api.nvim_create_user_command("CSTarget", function()
-					vim.ui.select(targets, { prompt = "Select target: " }, lsp_start)
+					vim.ui.select(targets, { prompt = "Select target: " }, function(target)
+						lsp_start(target, server_config)
+					end)
 				end, { desc = "Selects the target for the current buffer" })
 			end
 		end,
