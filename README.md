@@ -2,6 +2,8 @@
 
 This plugin adds support for the new Roslyn-based C# language server [introduced](https://devblogs.microsoft.com/visualstudio/announcing-csharp-dev-kit-for-visual-studio-code) in the [vscode C# extension](https://github.com/dotnet/vscode-csharp).
 
+Requires Neovim 0.10
+
 ## Setup
 
 You need to install the language server yourself. I did this by installing C#
