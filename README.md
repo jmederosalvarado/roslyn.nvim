@@ -4,8 +4,11 @@ This plugin adds support for the new Roslyn-based C# language server [introduced
 
 ## Setup
 
-You need to install the language server yourself. I did this by installing C# dev kit on vscode. I then checked `htop` and found the .dll file that was ran.
-Move the entire directory with all the binaries to `~/.local/share/nvim/roslyn`.
+You need to install the language server yourself. I did this by installing C#
+dev kit on vscode. I then checked `htop` and found the .dll file that was ran.
+Move the entire directory with all the binaries to
+`~/.local/share/nvim/roslyn`. The path to the dll that this plugin runs is:
+`~/.local/share/nvim/roslyn/Microsoft.CodeAnalysis.LanguageServer.dll`
 
 Install `seblj/roslyn.nvim` using your plugin manager.
 
