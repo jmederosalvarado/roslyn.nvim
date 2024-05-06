@@ -11,9 +11,9 @@ Install `seblj/roslyn.nvim` using your plugin manager.
 
 ```lua
 require("roslyn").setup({
-	-- Optional. Will use `vim.lsp.protocol.make_client_capabilities()`, and it will also try to
-	-- merge that with `nvim-cmp` LSP capabilities
-	capabilities = nil,
+    -- Optional. Will use `vim.lsp.protocol.make_client_capabilities()`,
+    -- and it will also try to merge that with `nvim-cmp` LSP capabilities
+    capabilities = nil,
 })
 ```
 
