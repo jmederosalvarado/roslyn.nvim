@@ -1,4 +1,5 @@
 local hacks = require("roslyn.hacks")
+local commands = require("roslyn.commands")
 
 local function bufname_valid(bufname)
     return bufname:match("^/")
@@ -8,7 +9,7 @@ local function bufname_valid(bufname)
 end
 
 local function lsp_start(target, server_config)
-    vim.lsp.start({
+    local client_id = vim.lsp.start({
         name = "roslyn",
         capabilities = server_config.capabilities,
         cmd = require("roslyn.lsp").start_uds("dotnet", {
@@ -40,6 +41,19 @@ local function lsp_start(target, server_config)
             end,
         },
     })
+
+    -- Handle the error in some way
+    if not client_id then
+        return
+    end
+
+    local client = vim.lsp.get_client_by_id(client_id)
+    if not client then
+        return
+    end
+
+    commands.fix_all_code_action(client)
+    commands.nested_code_action(client)
 end
 
 -- Assigns the default capabilities from cmp if installed, and the capabilities from neovim
