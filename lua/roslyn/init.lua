@@ -8,16 +8,12 @@ local function bufname_valid(bufname)
         or bufname:match("^tarfile:")
 end
 
-local function lsp_start(target, server_config)
+local function lsp_start(exe, target, server_config)
     local client_id = vim.lsp.start({
         name = "roslyn",
         capabilities = server_config.capabilities,
         cmd = require("roslyn.lsp").start_uds("dotnet", {
-            vim.fs.joinpath(
-                vim.fn.stdpath("data") --[[@as string]],
-                "roslyn",
-                "Microsoft.CodeAnalysis.LanguageServer.dll"
-            ),
+            exe,
             "--logLevel=Information",
             "--extensionLogDirectory=" .. vim.fs.dirname(vim.lsp.get_log_path()),
         }),
@@ -97,6 +93,16 @@ function M.setup(config)
                 return
             end
 
+            local exe = vim.fs.joinpath(
+                vim.fn.stdpath("data") --[[@as string]],
+                "roslyn",
+                "Microsoft.CodeAnalysis.LanguageServer.dll"
+            )
+
+            if not vim.uv.fs_stat(exe) then
+                return vim.notify("Language server not found. Refer to README on how to install", vim.log.levels.INFO)
+            end
+
             -- Finds possible targets
             local sln_dir = vim.fs.root(opt.buf, function(name)
                 return name:match("%.sln$") ~= nil
@@ -104,12 +110,12 @@ function M.setup(config)
             local targets = sln_dir and vim.fn.glob(vim.fs.joinpath(sln_dir, "*.sln"), true, true) or {}
 
             if #targets == 1 then
-                lsp_start(targets[1], server_config)
+                lsp_start(exe, targets[1], server_config)
             elseif #targets > 1 then
                 vim.notify("Multiple targets found. Use `CSTarget` to select target for buffer", vim.log.levels.INFO)
                 vim.api.nvim_create_user_command("CSTarget", function()
                     vim.ui.select(targets, { prompt = "Select target: " }, function(target)
-                        lsp_start(target, server_config)
+                        lsp_start(exe, target, server_config)
                     end)
                 end, { desc = "Selects the target for the current buffer" })
             end
