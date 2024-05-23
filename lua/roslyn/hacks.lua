@@ -120,4 +120,28 @@ function M.with_filtered_watchers(handler)
 	end
 end
 
+function M.fix_using_directives(bufnr, roslyn_client)
+	local attached_client = vim.lsp.get_client_by_id(roslyn_client.id)
+	local action = {
+		kind = "quickfix",
+		data = {
+			CustomTags = { "RemoveUnnecessaryImports" },
+			TextDocument = { uri = vim.uri_from_bufnr(bufnr) },
+			CodeActionPath = { "Remove unnecessary usings" },
+			Range = {
+				["start"] = { line = 0, character = 0 },
+				["end"] = { line = 0, character = 0 },
+			},
+			UniqueIdentifier = "Remove unnecessary usings",
+		},
+	}
+	attached_client.request("codeAction/resolve", action, function(err, resolved_action)
+		if err then
+			vim.notify_once("Fix using directives failed", vim.log.levels.ERROR, { title = "Roslyn" })
+			return
+		end
+		vim.lsp.util.apply_workspace_edit(resolved_action.edit, attached_client.offset_encoding)
+	end)
+end
+
 return M
