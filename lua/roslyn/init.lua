@@ -152,6 +152,12 @@ function M.setup_cmds()
 	vim.api.nvim_create_user_command("CSInstallRoslyn", function()
 		require("roslyn.install").install(M.server_config.dotnet_cmd, M.server_config.roslyn_version)
 	end, { desc = "Installs the roslyn server" })
+
+	vim.api.nvim_create_user_command("CSFixUsings", function()
+		local bufnr = vim.api.nvim_get_current_buf()
+		local target = get_selected_target(bufnr)
+		require("roslyn.hacks").fix_using_directives(bufnr, M.client_by_target[target])
+	end, { desc = "Remove unnecessary using directives" })
 end
 
 function M.setup(config)
