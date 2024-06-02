@@ -122,7 +122,9 @@ M.client_errors = {
 	SERVER_RESULT_CALLBACK_ERROR = 7,
 }
 
-M.client_errors = vim.tbl_add_reverse_lookup(M.client_errors)
+for key, value in pairs(M.client_errors) do
+	M.client_errors[value] = key
+end
 
 --- Constructs an error message from an LSP error object.
 ---
