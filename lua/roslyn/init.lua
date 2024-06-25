@@ -79,6 +79,11 @@ local M = {}
 function M.setup(config)
     local default_config = {
         capabilities = get_default_capabilities(),
+        exe = vim.fs.joinpath(
+            vim.fn.stdpath("data") --[[@as string]],
+            "roslyn",
+            "Microsoft.CodeAnalysis.LanguageServer.dll"
+        ),
     }
 
     local server_config = vim.tbl_deep_extend("force", default_config, config or {})
@@ -93,14 +98,17 @@ function M.setup(config)
                 return
             end
 
-            local exe = vim.fs.joinpath(
-                vim.fn.stdpath("data") --[[@as string]],
-                "roslyn",
-                "Microsoft.CodeAnalysis.LanguageServer.dll"
-            )
-
+            local exe = server_config.exe
             if not vim.uv.fs_stat(exe) then
-                return vim.notify("Language server not found. Refer to README on how to install", vim.log.levels.INFO)
+                return vim.notify(
+                    string.format("%s not found. Refer to README on how to setup the language server", exe),
+                    vim.log.levels.INFO
+                )
+            end
+
+            if vim.fn.executable(exe) == 0 then
+                vim.notify(string.format("Executable %s not found. Make sure that the file is executable", exe))
+                return
             end
 
             -- Finds possible targets
