@@ -136,10 +136,11 @@ function M.setup(config)
                 )
             end
 
-            if vim.fn.executable(exe) == 0 then
-                vim.notify(string.format("Executable %s not found. Make sure that the file is executable", exe))
-                return
-            end
+            -- this causes issues in windows
+            -- if vim.fn.executable(exe) == 0 then
+                -- vim.notify(string.format("Executable %s not found. Make sure that the file is executable", exe))
+                -- return
+            -- end
 
             -- Finds possible targets
             local sln_dir = vim.fs.root(opt.buf, function(name)
