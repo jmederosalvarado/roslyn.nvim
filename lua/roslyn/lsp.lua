@@ -3,16 +3,6 @@ local log = require("vim.lsp.log")
 local protocol = require("vim.lsp.protocol")
 local validate, schedule, schedule_wrap = vim.validate, vim.schedule, vim.schedule_wrap
 
-local is_win = uv.os_uname().version:find("Windows")
-
---- Checks whether a given path exists and is a directory.
----@param filename (string) path to check
----@return boolean
-local function is_dir(filename)
-    local stat = uv.fs_stat(filename)
-    return stat and stat.type == "directory" or false
-end
-
 --- Embeds the given string into a table and correctly computes `Content-Length`.
 ---
 ---@param encoded_message (string)
@@ -529,15 +519,14 @@ end
 ---
 ---@param cmd (string) Command to start the LSP server.
 ---@param cmd_args (table) List of additional string arguments to pass to {cmd}.
----@param extra_spawn_params table|nil Additional context for the LSP
 --- server process. May contain:
 --- - {cwd} (string) Working directory for the LSP server process
 --- - {env} (table) Additional environment variables for LSP server process
 ---@return function
-function M.start_uds(cmd, cmd_args, extra_spawn_params)
+function M.start_uds(cmd, cmd_args)
     return function(dispatchers)
         if log.info() then
-            log.info("Starting RPC client", { cmd = cmd, args = cmd_args, extra = extra_spawn_params })
+            log.info("Starting RPC client", { cmd = cmd, args = cmd_args })
         end
 
         validate({
@@ -545,12 +534,6 @@ function M.start_uds(cmd, cmd_args, extra_spawn_params)
             cmd_args = { cmd_args, "t" },
             dispatchers = { dispatchers, "t", true },
         })
-
-        extra_spawn_params = extra_spawn_params or {}
-
-        if extra_spawn_params.cwd then
-            assert(is_dir(extra_spawn_params.cwd), "cwd must be a directory")
-        end
 
         dispatchers = merge_dispatchers(dispatchers)
 
@@ -622,17 +605,10 @@ function M.start_uds(cmd, cmd_args, extra_spawn_params)
             end
         end
 
-        local detached = not is_win
-        if extra_spawn_params.detached ~= nil then
-            detached = extra_spawn_params.detached
-        end
-
         local ok, sysobj_or_err = pcall(vim.system, { cmd, unpack(cmd_args) }, {
             stdout = stdout_handler,
             stderr = stderr_handler,
-            cwd = extra_spawn_params.cwd,
-            env = extra_spawn_params.env,
-            detach = detached,
+            detach = not uv.os_uname().version:find("Windows"),
         }, function(obj)
             dispatchers.on_exit(obj.code, obj.signal)
         end)
