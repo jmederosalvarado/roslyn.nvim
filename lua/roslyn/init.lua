@@ -27,6 +27,7 @@ local function lsp_start(exe, target, server_config)
             local client_id = vim.lsp.start({
                 name = "roslyn",
                 capabilities = server_config.capabilities,
+                settings = server_config.settings,
                 cmd = vim.lsp.rpc.connect(pipe_name),
                 root_dir = vim.fs.dirname(target),
                 on_init = function(client)
