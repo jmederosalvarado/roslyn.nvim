@@ -5,81 +5,98 @@ local function bufname_valid(bufname)
         or bufname:match("^tarfile:")
 end
 
-local function lsp_start(exe, target, server_config)
-    local stdout_handler = function(_, data)
-        if not data then
-            vim.notify(string.format("data evaluates: (%s, %s) ", #data, data[1]), vim.log.levels.INFO)
-            return
-        end
+---@type string?
+local _pipe_name = nil
 
-        -- try parse data as json
-        local success, json_obj = pcall(vim.json.decode, data)
-        if not success then
-            return
-        end
+---@type table<string, string>
+---Key is solution directory, and value is csproj target
+local solution = {}
 
-        local pipe_name = json_obj["pipeName"]
-        if not pipe_name then
-            return
-        end
-
-        vim.schedule(function()
-            local client_id = vim.lsp.start({
-                name = "roslyn",
-                capabilities = server_config.capabilities,
-                settings = server_config.settings,
-                cmd = vim.lsp.rpc.connect(pipe_name),
-                root_dir = vim.fs.dirname(target),
-                on_init = function(client)
-                    vim.notify("Roslyn client initialized for " .. target, vim.log.levels.INFO)
-                    client.notify("solution/open", {
-                        ["solution"] = vim.uri_from_fname(target),
-                    })
-                end,
-                handlers = {
-                    [vim.lsp.protocol.Methods.client_registerCapability] = require("roslyn.hacks").with_filtered_watchers(
-                        vim.lsp.handlers[vim.lsp.protocol.Methods.client_registerCapability]
-                    ),
-                    ["workspace/projectInitializationComplete"] = function()
-                        vim.notify("Roslyn project initialization complete", vim.log.levels.INFO)
-                    end,
-                    ["workspace/_roslyn_projectHasUnresolvedDependencies"] = function()
-                        vim.notify("Detected missing dependencies. Run dotnet restore command.", vim.log.levels.ERROR)
-                        return vim.NIL
-                    end,
-                },
+---@param pipe string
+---@param target string
+---@param server_config vim.lsp.ClientConfig
+local function lsp_start(pipe, target, server_config)
+    local client_id = vim.lsp.start({
+        name = "roslyn",
+        capabilities = server_config.capabilities,
+        settings = server_config.settings,
+        cmd = vim.lsp.rpc.connect(pipe),
+        root_dir = vim.fs.dirname(target),
+        on_init = function(client)
+            vim.notify("Roslyn client initialized for " .. target, vim.log.levels.INFO)
+            client.notify("solution/open", {
+                ["solution"] = vim.uri_from_fname(target),
             })
+        end,
+        handlers = {
+            [vim.lsp.protocol.Methods.client_registerCapability] = require("roslyn.hacks").with_filtered_watchers(
+                vim.lsp.handlers[vim.lsp.protocol.Methods.client_registerCapability]
+            ),
+            ["workspace/projectInitializationComplete"] = function()
+                vim.notify("Roslyn project initialization complete", vim.log.levels.INFO)
+            end,
+            ["workspace/_roslyn_projectHasUnresolvedDependencies"] = function()
+                vim.notify("Detected missing dependencies. Run dotnet restore command.", vim.log.levels.ERROR)
+                return vim.NIL
+            end,
+        },
+    })
 
-            -- Handle the error in some way
-            if not client_id then
-                return
-            end
-
-            local client = vim.lsp.get_client_by_id(client_id)
-            if not client then
-                return
-            end
-
-            local commands = require("roslyn.commands")
-            commands.fix_all_code_action(client)
-            commands.nested_code_action(client)
-        end)
+    -- Handle the error in some way
+    if not client_id then
+        return
     end
 
+    local client = vim.lsp.get_client_by_id(client_id)
+    if not client then
+        return
+    end
+
+    local commands = require("roslyn.commands")
+    commands.fix_all_code_action(client)
+    commands.nested_code_action(client)
+end
+
+---@param exe string
+---@param target string
+---@param server_config vim.lsp.ClientConfig
+local function run_roslyn(exe, target, server_config)
     vim.system({
         "dotnet",
         exe,
         "--logLevel=Information",
         "--extensionLogDirectory=" .. vim.fs.dirname(vim.lsp.get_log_path()),
     }, {
-        stdout = stdout_handler,
+        detach = not vim.uv.os_uname().version:find("Windows"),
+        stdout = function(_, data)
+            if not data then
+                return vim.notify("Failed to get data from roslyn")
+            end
+
+            -- try parse data as json
+            local success, json_obj = pcall(vim.json.decode, data)
+            if not success then
+                return
+            end
+
+            local pipe_name = json_obj["pipeName"]
+            if not pipe_name then
+                return
+            end
+
+            -- Cache the pipe name so we only start roslyn once.
+            _pipe_name = pipe_name
+
+            vim.schedule(function()
+                lsp_start(pipe_name, target, server_config)
+            end)
+        end,
         stderr_handler = function(_, chunk)
             local log = require("vim.lsp.log")
             if chunk and log.error() then
                 log.error("rpc", "dotnet", "stderr", chunk)
             end
         end,
-        detach = not vim.uv.os_uname().version:find("Windows"),
     })
 end
 
@@ -117,8 +134,6 @@ function M.setup(config)
         ),
     }
 
-    local solution = {}
-
     local server_config = vim.tbl_deep_extend("force", default_config, config or {})
 
     vim.api.nvim_create_autocmd("FileType", {
@@ -146,24 +161,36 @@ function M.setup(config)
                 return
             end
 
-            if solution[sln_dir] then
-                return lsp_start(exe, solution[sln_dir], server_config)
-            end
-
-            -- Finds possible targets
+            -- We need to always check if there is more than one solution. If we have this check below the check for the pipe name
+            -- Then we wouldn't give the users an option to change target if they navigate to a different project with multiple solutions
+            -- after they have already started the roslyn language server, and a solution is chosen
             local targets = vim.fn.glob(vim.fs.joinpath(sln_dir, "*.sln"), true, true)
+            if #targets > 1 then
+                vim.notify_once(
+                    "Multiple targets found. Use `CSTarget` to select target for buffer",
+                    vim.log.levels.INFO
+                )
 
-            if #targets == 1 then
-                lsp_start(exe, targets[1], server_config)
-                solution[sln_dir] = targets[1]
-            elseif #targets > 1 then
-                vim.notify("Multiple targets found. Use `CSTarget` to select target for buffer", vim.log.levels.INFO)
                 vim.api.nvim_create_user_command("CSTarget", function()
                     vim.ui.select(targets, { prompt = "Select target: " }, function(target)
-                        lsp_start(exe, target, server_config)
                         solution[sln_dir] = target
+                        if _pipe_name then
+                            lsp_start(_pipe_name, target, server_config)
+                        else
+                            run_roslyn(exe, target, server_config)
+                        end
                     end)
                 end, { desc = "Selects the target for the current buffer" })
+            end
+
+            -- Roslyn is already running, so just call `vim.lsp.start` to handle everything
+            if _pipe_name and solution[sln_dir] then
+                return lsp_start(_pipe_name, solution[sln_dir], server_config)
+            end
+
+            if #targets == 1 then
+                run_roslyn(exe, targets[1], server_config)
+                solution[sln_dir] = targets[1]
             end
         end,
     })
