@@ -137,21 +137,6 @@ function M.setup(config)
                 )
             end
 
-            if vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1 then
-                -- This block will execute only on Windows systems
-                local handle = package.loadlib(exe, "*")
-                if not handle then
-                    vim.notify(string.format("DLL %s is not executable.", exe))
-                    return
-                end
-            else
-                -- This block will execute only on non-Windows systems
-                if vim.fn.executable(exe) == 0 then
-                    vim.notify(string.format("Executable %s not found. Make sure that the file is executable", exe))
-                    return
-                end
-            end
-                
             -- Finds possible targets
             local sln_dir = vim.fs.root(opt.buf, function(name)
                 return name:match("%.sln$") ~= nil
