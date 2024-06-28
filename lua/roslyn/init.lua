@@ -117,6 +117,8 @@ function M.setup(config)
         ),
     }
 
+    local solution = {}
+
     local server_config = vim.tbl_deep_extend("force", default_config, config or {})
 
     vim.api.nvim_create_autocmd("FileType", {
@@ -137,19 +139,29 @@ function M.setup(config)
                 )
             end
 
-            -- Finds possible targets
             local sln_dir = vim.fs.root(opt.buf, function(name)
                 return name:match("%.sln$") ~= nil
             end)
-            local targets = sln_dir and vim.fn.glob(vim.fs.joinpath(sln_dir, "*.sln"), true, true) or {}
+            if not sln_dir then
+                return
+            end
+
+            if solution[sln_dir] then
+                return lsp_start(exe, solution[sln_dir], server_config)
+            end
+
+            -- Finds possible targets
+            local targets = vim.fn.glob(vim.fs.joinpath(sln_dir, "*.sln"), true, true)
 
             if #targets == 1 then
                 lsp_start(exe, targets[1], server_config)
+                solution[sln_dir] = targets[1]
             elseif #targets > 1 then
                 vim.notify("Multiple targets found. Use `CSTarget` to select target for buffer", vim.log.levels.INFO)
                 vim.api.nvim_create_user_command("CSTarget", function()
                     vim.ui.select(targets, { prompt = "Select target: " }, function(target)
                         lsp_start(exe, target, server_config)
+                        solution[sln_dir] = target
                     end)
                 end, { desc = "Selects the target for the current buffer" })
             end
