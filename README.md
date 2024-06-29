@@ -31,7 +31,11 @@ require("roslyn").setup({
     config = {
         capabilities = nil,
     },
-    exe = "Microsoft.CodeAnalysis.LanguageServer.dll",
+    exe = vim.fs.joinpath(
+        vim.fn.stdpath("data") --[[@as string]],
+        "roslyn",
+        "Microsoft.CodeAnalysis.LanguageServer.dll"
+    ),
     -- NOTE: This is a hack to hopefully increase performance in some cases.
     -- If you notice that the server is _super_ slow, it is probably because of file watching
     -- I noticed that neovim became super unresponsive on some large codebases, and that was because
