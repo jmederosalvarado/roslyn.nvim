@@ -30,8 +30,9 @@ local function lsp_start(pipe, target, roslyn_config)
             })
         end,
         handlers = {
-            [vim.lsp.protocol.Methods.client_registerCapability] = require("roslyn.hacks").with_filtered_watchers(
-                vim.lsp.handlers[vim.lsp.protocol.Methods.client_registerCapability]
+            ["client/registerCapability"] = require("roslyn.hacks").with_filtered_watchers(
+                vim.lsp.handlers["client/registerCapability"],
+                roslyn_config
             ),
             ["workspace/projectInitializationComplete"] = function()
                 vim.notify("Roslyn project initialization complete", vim.log.levels.INFO)
@@ -103,7 +104,8 @@ end
 
 -- Assigns the default capabilities from cmp if installed, and the capabilities from neovim
 -- Merges it in with any user configured capabilities if provided
-local function get_default_capabilities()
+---@param roslyn_config? RoslynNvimConfig
+local function get_default_capabilities(roslyn_config)
     local ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
     local capabilities = ok
             and vim.tbl_deep_extend(
@@ -112,6 +114,19 @@ local function get_default_capabilities()
                 cmp_nvim_lsp.default_capabilities()
             )
         or vim.lsp.protocol.make_client_capabilities()
+
+    -- This actually tells the server that the client can do filewatching.
+    -- We will then later just not watch any files. This is because the server
+    -- will fallback to its own filewatching which is super slow.
+    if roslyn_config and not roslyn_config.filewatching then
+        capabilities = vim.tbl_deep_extend("force", capabilities, {
+            workspace = {
+                didChangeWatchedFiles = {
+                    dynamicRegistration = true,
+                },
+            },
+        })
+    end
 
     -- HACK: Roslyn requires the dynamicRegistration to be set to support diagnostics for some reason
     return vim.tbl_deep_extend("force", capabilities, {
@@ -126,6 +141,7 @@ end
 local M = {}
 
 ---@class RoslynNvimConfig
+---@field filewatching boolean
 ---@field exe string
 ---@field config vim.lsp.ClientConfig
 
@@ -133,6 +149,7 @@ local M = {}
 function M.setup(config)
     ---@type RoslynNvimConfig
     local default_config = {
+        filewatching = true,
         exe = vim.fs.joinpath(
             vim.fn.stdpath("data") --[[@as string]],
             "roslyn",

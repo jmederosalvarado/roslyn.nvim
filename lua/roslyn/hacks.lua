@@ -1,10 +1,12 @@
 local M = {}
 
-function M.with_filtered_watchers(handler)
+---@param handler function
+---@param roslyn_config RoslynNvimConfig
+function M.with_filtered_watchers(handler, roslyn_config)
     return function(err, res, ctx, config)
         for _, reg in ipairs(res.registrations) do
             if reg.method == vim.lsp.protocol.Methods.workspace_didChangeWatchedFiles then
-                reg.registerOptions.watchers = vim.tbl_filter(function(watcher)
+                local watchers = vim.tbl_filter(function(watcher)
                     if type(watcher.globPattern) == "table" then
                         local base_uri = nil ---@type string?
                         if type(watcher.globPattern.baseUri) == "string" then
@@ -31,6 +33,8 @@ function M.with_filtered_watchers(handler)
 
                     return true
                 end, reg.registerOptions.watchers)
+
+                reg.registerOptions.watchers = roslyn_config.filewatching and watchers or {}
             end
         end
         return handler(err, res, ctx, config)
