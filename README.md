@@ -26,10 +26,14 @@ Example:
 
 ```lua
 require("roslyn").setup({
-    -- Optional. Will use `vim.lsp.protocol.make_client_capabilities()`,
-    -- and it will also try to merge that with `nvim-cmp` LSP capabilities
     config = {
-        capabilities = nil,
+        -- Here you can pass in any options that that you would like to pass to `vim.lsp.start`
+        -- The only options that I explicitly override are, which means won't have any effect of setting here are:
+        --     - `name`
+        --     - `cmd`
+        --     - `root_dir`
+        --     - `on_init`
+        --     - `handlers`
     },
     exe = vim.fs.joinpath(
         vim.fn.stdpath("data") --[[@as string]],

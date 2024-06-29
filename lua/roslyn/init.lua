@@ -17,33 +17,32 @@ local solution = {}
 ---@param target string
 ---@param roslyn_config RoslynNvimConfig
 local function lsp_start(pipe, target, roslyn_config)
-    local client_id = vim.lsp.start({
-        name = "roslyn",
-        capabilities = roslyn_config.config.capabilities,
-        settings = roslyn_config.config.settings,
-        cmd = vim.lsp.rpc.connect(pipe),
-        root_dir = vim.fs.dirname(target),
-        on_attach = roslyn_config.config.on_attach,
-        on_init = function(client)
-            vim.notify("Roslyn client initialized for " .. target, vim.log.levels.INFO)
-            client.notify("solution/open", {
-                ["solution"] = vim.uri_from_fname(target),
-            })
+    local config = roslyn_config.config
+
+    config.name = "roslyn"
+    config.cmd = vim.lsp.rpc.connect(pipe)
+    config.root_dir = vim.fs.dirname(target)
+    config.on_init = function(client)
+        vim.notify("Roslyn client initialized for " .. target, vim.log.levels.INFO)
+        client.notify("solution/open", {
+            ["solution"] = vim.uri_from_fname(target),
+        })
+    end
+    config.handlers = {
+        ["client/registerCapability"] = require("roslyn.hacks").with_filtered_watchers(
+            vim.lsp.handlers["client/registerCapability"],
+            roslyn_config
+        ),
+        ["workspace/projectInitializationComplete"] = function()
+            vim.notify("Roslyn project initialization complete", vim.log.levels.INFO)
         end,
-        handlers = {
-            ["client/registerCapability"] = require("roslyn.hacks").with_filtered_watchers(
-                vim.lsp.handlers["client/registerCapability"],
-                roslyn_config
-            ),
-            ["workspace/projectInitializationComplete"] = function()
-                vim.notify("Roslyn project initialization complete", vim.log.levels.INFO)
-            end,
-            ["workspace/_roslyn_projectHasUnresolvedDependencies"] = function()
-                vim.notify("Detected missing dependencies. Run dotnet restore command.", vim.log.levels.ERROR)
-                return vim.NIL
-            end,
-        },
-    })
+        ["workspace/_roslyn_projectHasUnresolvedDependencies"] = function()
+            vim.notify("Detected missing dependencies. Run dotnet restore command.", vim.log.levels.ERROR)
+            return vim.NIL
+        end,
+    }
+
+    local client_id = vim.lsp.start(config)
 
     -- Handle the error in some way
     if not client_id then
