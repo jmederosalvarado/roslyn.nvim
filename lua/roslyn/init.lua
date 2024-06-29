@@ -23,6 +23,7 @@ local function lsp_start(pipe, target, roslyn_config)
         settings = roslyn_config.config.settings,
         cmd = vim.lsp.rpc.connect(pipe),
         root_dir = vim.fs.dirname(target),
+        on_attach = roslyn_config.config.on_attach,
         on_init = function(client)
             vim.notify("Roslyn client initialized for " .. target, vim.log.levels.INFO)
             client.notify("solution/open", {
