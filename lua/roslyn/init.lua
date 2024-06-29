@@ -1,3 +1,4 @@
+---@param bufname string
 local function bufname_valid(bufname)
     return bufname:match("^/")
         or bufname:match("^[a-zA-Z]:")
@@ -14,12 +15,12 @@ local solution = {}
 
 ---@param pipe string
 ---@param target string
----@param server_config vim.lsp.ClientConfig
-local function lsp_start(pipe, target, server_config)
+---@param roslyn_config RoslynNvimConfig
+local function lsp_start(pipe, target, roslyn_config)
     local client_id = vim.lsp.start({
         name = "roslyn",
-        capabilities = server_config.capabilities,
-        settings = server_config.settings,
+        capabilities = roslyn_config.config.capabilities,
+        settings = roslyn_config.config.settings,
         cmd = vim.lsp.rpc.connect(pipe),
         root_dir = vim.fs.dirname(target),
         on_init = function(client)
@@ -59,8 +60,8 @@ end
 
 ---@param exe string
 ---@param target string
----@param server_config vim.lsp.ClientConfig
-local function run_roslyn(exe, target, server_config)
+---@param config RoslynNvimConfig
+local function run_roslyn(exe, target, config)
     vim.system({
         "dotnet",
         exe,
@@ -88,7 +89,7 @@ local function run_roslyn(exe, target, server_config)
             _pipe_name = pipe_name
 
             vim.schedule(function()
-                lsp_start(pipe_name, target, server_config)
+                lsp_start(pipe_name, target, config)
             end)
         end,
         stderr_handler = function(_, chunk)
@@ -124,17 +125,28 @@ end
 
 local M = {}
 
+---@class RoslynNvimConfig
+---@field exe string
+---@field config vim.lsp.ClientConfig
+
+---@param config? RoslynNvimConfig
 function M.setup(config)
+    ---@type RoslynNvimConfig
     local default_config = {
-        capabilities = get_default_capabilities(),
         exe = vim.fs.joinpath(
             vim.fn.stdpath("data") --[[@as string]],
             "roslyn",
             "Microsoft.CodeAnalysis.LanguageServer.dll"
         ),
+        -- I don't know how to make this a partial type.
+        ---@diagnostic disable-next-line: missing-fields
+        config = {
+            capabilities = get_default_capabilities(config),
+        },
     }
 
-    local server_config = vim.tbl_deep_extend("force", default_config, config or {})
+    ---@type RoslynNvimConfig
+    local roslyn_config = vim.tbl_deep_extend("force", default_config, config or {})
 
     vim.api.nvim_create_autocmd("FileType", {
         group = vim.api.nvim_create_augroup("Roslyn", { clear = true }),
@@ -146,7 +158,7 @@ function M.setup(config)
                 return
             end
 
-            local exe = server_config.exe
+            local exe = roslyn_config.exe
             if not vim.uv.fs_stat(exe) then
                 return vim.notify(
                     string.format("%s not found. Refer to README on how to setup the language server", exe),
@@ -175,9 +187,9 @@ function M.setup(config)
                     vim.ui.select(targets, { prompt = "Select target: " }, function(target)
                         solution[sln_dir] = target
                         if _pipe_name then
-                            lsp_start(_pipe_name, target, server_config)
+                            lsp_start(_pipe_name, target, roslyn_config)
                         else
-                            run_roslyn(exe, target, server_config)
+                            run_roslyn(exe, target, roslyn_config)
                         end
                     end)
                 end, { desc = "Selects the target for the current buffer" })
@@ -185,11 +197,11 @@ function M.setup(config)
 
             -- Roslyn is already running, so just call `vim.lsp.start` to handle everything
             if _pipe_name and solution[sln_dir] then
-                return lsp_start(_pipe_name, solution[sln_dir], server_config)
+                return lsp_start(_pipe_name, solution[sln_dir], roslyn_config)
             end
 
             if #targets == 1 then
-                run_roslyn(exe, targets[1], server_config)
+                run_roslyn(exe, targets[1], roslyn_config)
                 solution[sln_dir] = targets[1]
             end
         end,

@@ -28,7 +28,9 @@ Example:
 require("roslyn").setup({
     -- Optional. Will use `vim.lsp.protocol.make_client_capabilities()`,
     -- and it will also try to merge that with `nvim-cmp` LSP capabilities
-    capabilities = nil,
+    config = {
+        capabilities = nil,
+    },
     exe = "Microsoft.CodeAnalysis.LanguageServer.dll",
 })
 ```
