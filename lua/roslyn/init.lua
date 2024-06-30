@@ -72,7 +72,7 @@ local function run_roslyn(exe, target, config)
         detach = not vim.uv.os_uname().version:find("Windows"),
         stdout = function(_, data)
             if not data then
-                return vim.notify("Failed to get data from roslyn")
+                return
             end
 
             -- try parse data as json
