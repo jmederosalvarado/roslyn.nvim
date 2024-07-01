@@ -1,7 +1,7 @@
 local M = {}
 
 ---@param handler function
----@param roslyn_config RoslynNvimConfig
+---@param roslyn_config InternalRoslynNvimConfig
 function M.with_filtered_watchers(handler, roslyn_config)
     return function(err, res, ctx, config)
         for _, reg in ipairs(res.registrations) do

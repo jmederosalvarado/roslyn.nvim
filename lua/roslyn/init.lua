@@ -15,7 +15,7 @@ local solution = {}
 
 ---@param pipe string
 ---@param target string
----@param roslyn_config RoslynNvimConfig
+---@param roslyn_config InternalRoslynNvimConfig
 local function lsp_start(pipe, target, roslyn_config)
     local config = roslyn_config.config
 
@@ -61,7 +61,7 @@ end
 
 ---@param exe string
 ---@param target string
----@param config RoslynNvimConfig
+---@param config InternalRoslynNvimConfig
 local function run_roslyn(exe, target, config)
     vim.system({
         "dotnet",
@@ -118,7 +118,10 @@ local function get_default_capabilities(roslyn_config)
     -- This actually tells the server that the client can do filewatching.
     -- We will then later just not watch any files. This is because the server
     -- will fallback to its own filewatching which is super slow.
-    if roslyn_config and not roslyn_config.filewatching then
+
+    -- Default value is true, so the user needs to explicilty pass `false` for this to happen
+    -- `not filewatching` evaluates to true if the user don't provide a value for this
+    if roslyn_config and roslyn_config.filewatching == false then
         capabilities = vim.tbl_deep_extend("force", capabilities, {
             workspace = {
                 didChangeWatchedFiles = {
@@ -140,14 +143,19 @@ end
 
 local M = {}
 
----@class RoslynNvimConfig
+---@class InternalRoslynNvimConfig
 ---@field filewatching boolean
 ---@field exe string
 ---@field config vim.lsp.ClientConfig
 
+---@class RoslynNvimConfig
+---@field filewatching? boolean
+---@field exe? string
+---@field config? vim.lsp.ClientConfig
+
 ---@param config? RoslynNvimConfig
 function M.setup(config)
-    ---@type RoslynNvimConfig
+    ---@type InternalRoslynNvimConfig
     local default_config = {
         filewatching = true,
         exe = vim.fs.joinpath(
@@ -162,7 +170,7 @@ function M.setup(config)
         },
     }
 
-    ---@type RoslynNvimConfig
+    ---@type InternalRoslynNvimConfig
     local roslyn_config = vim.tbl_deep_extend("force", default_config, config or {})
 
     vim.api.nvim_create_autocmd("FileType", {
