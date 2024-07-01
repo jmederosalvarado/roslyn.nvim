@@ -63,12 +63,24 @@ end
 ---@param target string
 ---@param config InternalRoslynNvimConfig
 local function run_roslyn(exe, target, config)
-    vim.system({
+    local cmd = {
         "dotnet",
         exe,
         "--logLevel=Information",
         "--extensionLogDirectory=" .. vim.fs.dirname(vim.lsp.get_log_path()),
-    }, {
+    }
+
+    -- Check if we have a binary installed through mason. If we do, the prefer to use that
+    local mason_file = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "mason", "bin", "roslyn")
+    if vim.uv.fs_stat(mason_file) then
+        cmd = {
+            mason_file,
+            "--logLevel=Information",
+            "--extensionLogDirectory=" .. vim.fs.dirname(vim.lsp.get_log_path()),
+        }
+    end
+
+    vim.system(cmd, {
         detach = not vim.uv.os_uname().version:find("Windows"),
         stdout = function(_, data)
             if not data then
