@@ -6,7 +6,11 @@ local function bufname_valid(bufname)
         or bufname:match("^tarfile:")
 end
 
-local mason_installation = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "mason", "bin", "roslyn")
+local function get_mason_installation()
+    local mason_installation = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "mason", "bin", "roslyn")
+    return vim.uv.os_uname().sysname == "Windows_NT" and string.format("%s.cmd", mason_installation)
+        or mason_installation
+end
 
 ---@type string?
 local _pipe_name = nil
@@ -73,6 +77,7 @@ local function run_roslyn(exe, target, config)
     }
 
     -- Check if we have a binary installed through mason. If we do, the prefer to use that
+    local mason_installation = get_mason_installation()
     if vim.uv.fs_stat(mason_installation) then
         cmd = {
             mason_installation,
@@ -197,6 +202,7 @@ function M.setup(config)
             end
 
             local exe = roslyn_config.exe
+            local mason_installation = get_mason_installation()
             if not vim.uv.fs_stat(exe) and not vim.uv.fs_stat(mason_installation) then
                 return vim.notify(
                     string.format("%s not found. Refer to README on how to setup the language server", exe),
