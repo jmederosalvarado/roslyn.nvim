@@ -57,7 +57,7 @@ function M.get_current_solution_file(buffer)
     local csproj_files = vim.fn.glob(vim.fs.joinpath(csproj_dir, "*.csproj"), true, true)
 
     if #csproj_files > 1 then
-        return nil -- enum?
+        return nil
     end
 
     local csproj_filename = vim.fn.fnamemodify(csproj_files[1], ":t")
