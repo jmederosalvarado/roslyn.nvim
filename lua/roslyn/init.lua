@@ -24,7 +24,6 @@ local known_solutions = {}
 ---@param roslyn_config InternalRoslynNvimConfig
 local function lsp_start(pipe, target, roslyn_config)
     local config = roslyn_config.config
-    print("INIT")
 
     config.name = "roslyn"
     config.cmd = vim.lsp.rpc.connect(pipe)
@@ -211,7 +210,11 @@ function M.setup(config)
                 )
             end
 
-            local sln_directory = require("roslyn.slnutils").get_solution_directory(opt.buf)
+            local sln_directory = require("roslyn.slnutils").get_sln_directory(opt.buf)
+
+            if not sln_directory then
+                return
+            end
 
             -- Roslyn is already running, so just call `vim.lsp.start` to handle everything
             if _pipe_name and known_solutions[sln_directory] then
@@ -220,7 +223,7 @@ function M.setup(config)
                 return
             end
 
-            local all_sln_files = require("roslyn.slnutils").get_all_solution_files(opt.buf)
+            local all_sln_files = require("roslyn.slnutils").get_all_sln_files(opt.buf)
 
             if not all_sln_files then
                 return
@@ -244,8 +247,8 @@ function M.setup(config)
                 return
             end
 
-            -- Multiple SLN files found, let's try to predict which one is the correct one for the current buffer
-            local predicted_sln_file = require("roslyn.slnutils").get_current_solution_file(opt.buf)
+            -- Multiple sln files found, let's try to predict which one is the correct one for the current buffer
+            local predicted_sln_file = require("roslyn.slnutils").predict_solution_file(opt.buf)
 
             if predicted_sln_file then
                 run_roslyn(exe, predicted_sln_file, roslyn_config)
@@ -253,7 +256,7 @@ function M.setup(config)
             end
 
             vim.notify_once(
-                "Multiple SLN files found. You can use `CSTarget` to select target for buffer",
+                "Multiple sln files found. You can use `CSTarget` to select target for buffer",
                 vim.log.levels.INFO
             )
         end,
