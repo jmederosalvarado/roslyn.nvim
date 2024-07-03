@@ -48,7 +48,7 @@ end
 --- should be a part of the sln file that the user intended to open.
 ---@param buffer integer
 ---@return string?
-function M.predict_solution_file(buffer)
+function M.predict_sln_file(buffer)
     local sln_files = M.get_all_sln_files(buffer)
 
     if not sln_files then

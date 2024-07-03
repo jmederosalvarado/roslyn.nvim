@@ -248,7 +248,7 @@ function M.setup(config)
             end
 
             -- Multiple sln files found, let's try to predict which one is the correct one for the current buffer
-            local predicted_sln_file = require("roslyn.slnutils").predict_solution_file(opt.buf)
+            local predicted_sln_file = require("roslyn.slnutils").predict_sln_file(opt.buf)
 
             if predicted_sln_file then
                 run_roslyn(exe, predicted_sln_file, roslyn_config)
