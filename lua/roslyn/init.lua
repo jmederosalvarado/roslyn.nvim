@@ -21,17 +21,16 @@ local known_solutions = {}
 
 ---@param pipe string
 ---@param target string
----@param roslyn_config InternalRoslynNvimConfig
-local function lsp_start(pipe, target, roslyn_config)
-    local config = roslyn_config.config
-
+---@param config vim.lsp.ClientConfig
+---@param filewatching boolean
+local function lsp_start(pipe, target, config, filewatching)
     config.name = "roslyn"
     config.cmd = vim.lsp.rpc.connect(pipe)
     config.root_dir = vim.fs.dirname(target)
     config.handlers = vim.tbl_deep_extend("force", {
         ["client/registerCapability"] = require("roslyn.hacks").with_filtered_watchers(
             vim.lsp.handlers["client/registerCapability"],
-            roslyn_config
+            filewatching
         ),
         ["workspace/projectInitializationComplete"] = function()
             vim.notify("Roslyn project initialization complete", vim.log.levels.INFO)
@@ -65,27 +64,11 @@ local function lsp_start(pipe, target, roslyn_config)
     commands.nested_code_action(client)
 end
 
----@param exe string
+---@param cmd string[]
 ---@param target string
----@param config InternalRoslynNvimConfig
-local function run_roslyn(exe, target, config)
-    local cmd = {
-        "dotnet",
-        exe,
-        "--logLevel=Information",
-        "--extensionLogDirectory=" .. vim.fs.dirname(vim.lsp.get_log_path()),
-    }
-
-    -- Check if we have a binary installed through mason. If we do, the prefer to use that
-    local mason_installation = get_mason_installation()
-    if vim.uv.fs_stat(mason_installation) then
-        cmd = {
-            mason_installation,
-            "--logLevel=Information",
-            "--extensionLogDirectory=" .. vim.fs.dirname(vim.lsp.get_log_path()),
-        }
-    end
-
+---@param config vim.lsp.ClientConfig
+---@param filewatching boolean
+local function run_roslyn(cmd, target, config, filewatching)
     vim.system(cmd, {
         detach = not vim.uv.os_uname().version:find("Windows"),
         stdout = function(_, data)
@@ -108,7 +91,7 @@ local function run_roslyn(exe, target, config)
             _pipe_name = pipe_name
 
             vim.schedule(function()
-                lsp_start(pipe_name, target, config)
+                lsp_start(pipe_name, target, config, filewatching)
             end)
         end,
         stderr_handler = function(_, chunk)
@@ -164,6 +147,21 @@ local function get_default_capabilities(roslyn_config)
     })
 end
 
+---@param exe string|string[]
+local function get_cmd(exe)
+    local default_lsp_args =
+        { "--logLevel=Information", "--extensionLogDirectory=" .. vim.fs.dirname(vim.lsp.get_log_path()) }
+    local mason_installation = get_mason_installation()
+
+    if type(exe) == "string" then
+        return vim.list_extend({ exe }, default_lsp_args)
+    elseif type(exe) == "table" then
+        return vim.list_extend(vim.deepcopy(exe), default_lsp_args)
+    elseif vim.uv.fs_stat(mason_installation) then
+        return vim.list_extend({ mason_installation }, default_lsp_args)
+    end
+end
+
 local M = {}
 
 ---@class InternalRoslynNvimConfig
@@ -173,7 +171,7 @@ local M = {}
 
 ---@class RoslynNvimConfig
 ---@field filewatching? boolean
----@field exe? string
+---@field exe? string|string[]
 ---@field config? vim.lsp.ClientConfig
 
 ---@param config? RoslynNvimConfig
@@ -198,6 +196,20 @@ function M.setup(config)
     ---@type InternalRoslynNvimConfig
     local roslyn_config = vim.tbl_deep_extend("force", default_config, config or {})
 
+    local cmd = get_cmd(roslyn_config.exe)
+
+    if cmd == nil then
+        return vim.notify(
+            string.format("%s not found. Refer to README on how to setup the language server", cmd),
+            vim.log.levels.INFO
+        )
+    end
+
+    local filewatching = roslyn_config.filewatching
+    if filewatching == nil then
+        filewatching = true
+    end
+
     vim.api.nvim_create_autocmd("FileType", {
         group = vim.api.nvim_create_augroup("Roslyn", { clear = true }),
         pattern = { "cs" },
@@ -208,15 +220,6 @@ function M.setup(config)
                 return
             end
 
-            local exe = roslyn_config.exe
-            local mason_installation = get_mason_installation()
-            if not vim.uv.fs_stat(exe) and not vim.uv.fs_stat(mason_installation) and not vim.fn.executable(exe) then
-                return vim.notify(
-                    string.format("%s not found. Refer to README on how to setup the language server", exe),
-                    vim.log.levels.INFO
-                )
-            end
-
             local sln_directory = require("roslyn.slnutils").get_sln_directory(opt.buf)
 
             if not sln_directory then
@@ -225,8 +228,7 @@ function M.setup(config)
 
             -- Roslyn is already running, so just call `vim.lsp.start` to handle everything
             if _pipe_name and known_solutions[sln_directory] then
-                lsp_start(_pipe_name, known_solutions[sln_directory], roslyn_config)
-
+                lsp_start(_pipe_name, known_solutions[sln_directory], roslyn_config.config, filewatching)
                 return
             end
 
@@ -240,15 +242,15 @@ function M.setup(config)
                 vim.ui.select(all_sln_files, { prompt = "Select target solution: " }, function(sln_file)
                     known_solutions[sln_directory] = sln_file
                     if _pipe_name then
-                        lsp_start(_pipe_name, sln_file, roslyn_config)
+                        lsp_start(_pipe_name, sln_file, roslyn_config.config, filewatching)
                     else
-                        run_roslyn(exe, sln_file, roslyn_config)
+                        run_roslyn(cmd, sln_file, roslyn_config.config, filewatching)
                     end
                 end)
             end, { desc = "Selects the sln file for the current buffer" })
 
             if #all_sln_files == 1 then
-                run_roslyn(exe, all_sln_files[1], roslyn_config)
+                run_roslyn(cmd, all_sln_files[1], roslyn_config.config, filewatching)
                 known_solutions[sln_directory] = all_sln_files[1]
 
                 return
@@ -258,7 +260,7 @@ function M.setup(config)
             local predicted_sln_file = require("roslyn.slnutils").predict_sln_file(opt.buf)
 
             if predicted_sln_file then
-                run_roslyn(exe, predicted_sln_file, roslyn_config)
+                run_roslyn(cmd, predicted_sln_file, roslyn_config.config, filewatching)
                 known_solutions[sln_directory] = predicted_sln_file
             end
 

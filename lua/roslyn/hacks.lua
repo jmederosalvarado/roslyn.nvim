@@ -1,8 +1,8 @@
 local M = {}
 
 ---@param handler function
----@param roslyn_config InternalRoslynNvimConfig
-function M.with_filtered_watchers(handler, roslyn_config)
+---@param filewatching boolean
+function M.with_filtered_watchers(handler, filewatching)
     return function(err, res, ctx, config)
         for _, reg in ipairs(res.registrations) do
             if reg.method == vim.lsp.protocol.Methods.workspace_didChangeWatchedFiles then
@@ -34,7 +34,7 @@ function M.with_filtered_watchers(handler, roslyn_config)
                     return true
                 end, reg.registerOptions.watchers)
 
-                reg.registerOptions.watchers = roslyn_config.filewatching and watchers or {}
+                reg.registerOptions.watchers = filewatching and watchers or {}
             end
         end
         return handler(err, res, ctx, config)
