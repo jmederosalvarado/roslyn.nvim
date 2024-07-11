@@ -159,6 +159,15 @@ local function get_cmd(exe)
         return vim.list_extend(vim.deepcopy(exe), default_lsp_args)
     elseif vim.uv.fs_stat(mason_installation) then
         return vim.list_extend({ mason_installation }, default_lsp_args)
+    else
+        return vim.list_extend({
+            "dotnet",
+            vim.fs.joinpath(
+                vim.fn.stdpath("data") --[[@as string]],
+                "roslyn",
+                "Microsoft.CodeAnalysis.LanguageServer.dll"
+            ),
+        }, default_lsp_args)
     end
 end
 
