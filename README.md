@@ -33,7 +33,6 @@ require("roslyn").setup({
         --     - `cmd`
         --     - `root_dir`
         --     - `on_init`
-        --     - `handlers`
     },
     exe = vim.fs.joinpath(
         vim.fn.stdpath("data") --[[@as string]],
