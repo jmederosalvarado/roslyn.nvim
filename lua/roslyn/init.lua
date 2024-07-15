@@ -28,13 +28,7 @@ local function lsp_start(pipe, target, roslyn_config)
     config.name = "roslyn"
     config.cmd = vim.lsp.rpc.connect(pipe)
     config.root_dir = vim.fs.dirname(target)
-    config.on_init = function(client)
-        vim.notify("Initializing Roslyn client for " .. target, vim.log.levels.INFO)
-        client.notify("solution/open", {
-            ["solution"] = vim.uri_from_fname(target),
-        })
-    end
-    config.handlers = {
+    config.handlers = vim.tbl_deep_extend("force", {
         ["client/registerCapability"] = require("roslyn.hacks").with_filtered_watchers(
             vim.lsp.handlers["client/registerCapability"],
             roslyn_config
@@ -46,7 +40,13 @@ local function lsp_start(pipe, target, roslyn_config)
             vim.notify("Detected missing dependencies. Run dotnet restore command.", vim.log.levels.ERROR)
             return vim.NIL
         end,
-    }
+    }, config.handlers or {})
+    config.on_init = function(client)
+        vim.notify("Initializing Roslyn client for " .. target, vim.log.levels.INFO)
+        client.notify("solution/open", {
+            ["solution"] = vim.uri_from_fname(target),
+        })
+    end
 
     local client_id = vim.lsp.start(config)
 
