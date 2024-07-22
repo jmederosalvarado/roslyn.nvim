@@ -57,7 +57,7 @@ require("roslyn").setup({
 
 Settings can be passed to the setup function. The following settings are available [vscode-csharp unit tests link](https://github.com/dotnet/vscode-csharp/blob/main/test/unitTests/configurationMiddleware.test.ts):
 
-```lua
+```
 code_style.formatting.new_line.insert_final_newline
 
 csharp|background_analysis.dotnet_analyzer_diagnostics_scope
@@ -107,31 +107,29 @@ mystery_language|symbol_search.dotnet_search_reference_assemblies
 navigation.dotnet_navigate_to_decompiled_sources
 
 text_editor.tab_width
-````
+```
 
 Example enabling inlay hints:
 
 ```lua
 require("roslyn").setup({
-    dotnet_cmd = "dotnet", -- this is the default
-    roslyn_version = "4.8.0-3.23475.7", -- this is the default
-    on_attach = <on_attach you would pass to nvim-lspconfig>, -- required
-    capabilities = <capabilities you would pass to nvim-lspconfig>, -- required
-    settings = {
-      ["csharp|inlay_hints"] = {
-        csharp_enable_inlay_hints_for_implicit_object_creation = true,
-        csharp_enable_inlay_hints_for_implicit_variable_types = true,
-        csharp_enable_inlay_hints_for_lambda_parameter_types = true,
-        csharp_enable_inlay_hints_for_types = true,
-        dotnet_enable_inlay_hints_for_indexer_parameters = true,
-        dotnet_enable_inlay_hints_for_literal_parameters = true,
-        dotnet_enable_inlay_hints_for_object_creation_parameters = true,
-        dotnet_enable_inlay_hints_for_other_parameters = true,
-        dotnet_enable_inlay_hints_for_parameters = true,
-        dotnet_suppress_inlay_hints_for_parameters_that_differ_only_by_suffix = true,
-        dotnet_suppress_inlay_hints_for_parameters_that_match_argument_name = true,
-        dotnet_suppress_inlay_hints_for_parameters_that_match_method_intent = true,
-      },
+    config = {
+        settings = {
+            ["csharp|inlay_hints"] = {
+                csharp_enable_inlay_hints_for_implicit_object_creation = true,
+                csharp_enable_inlay_hints_for_implicit_variable_types = true,
+                csharp_enable_inlay_hints_for_lambda_parameter_types = true,
+                csharp_enable_inlay_hints_for_types = true,
+                dotnet_enable_inlay_hints_for_indexer_parameters = true,
+                dotnet_enable_inlay_hints_for_literal_parameters = true,
+                dotnet_enable_inlay_hints_for_object_creation_parameters = true,
+                dotnet_enable_inlay_hints_for_other_parameters = true,
+                dotnet_enable_inlay_hints_for_parameters = true,
+                dotnet_suppress_inlay_hints_for_parameters_that_differ_only_by_suffix = true,
+                dotnet_suppress_inlay_hints_for_parameters_that_match_argument_name = true,
+                dotnet_suppress_inlay_hints_for_parameters_that_match_method_intent = true,
+            },
+        },
     },
 })
 ```
