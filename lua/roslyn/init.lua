@@ -173,6 +173,8 @@ local M = {}
 
 ---@param config? RoslynNvimConfig
 function M.setup(config)
+    vim.treesitter.language.register("c_sharp", "csharp")
+
     ---@type InternalRoslynNvimConfig
     local default_config = {
         filewatching = true,
