@@ -86,38 +86,47 @@ local function run_roslyn(exe, target, config)
         }
     end
 
-    vim.system(cmd, {
-        detach = not vim.uv.os_uname().version:find("Windows"),
-        stdout = function(_, data)
-            if not data then
-                return
-            end
+    vim.system(
+        cmd,
+        {
+            detach = not vim.uv.os_uname().version:find("Windows"),
+            stdout = function(_, data)
+                if not data then
+                    return
+                end
 
-            -- try parse data as json
-            local success, json_obj = pcall(vim.json.decode, data)
-            if not success then
-                return
-            end
+                -- try parse data as json
+                local success, json_obj = pcall(vim.json.decode, data)
+                if not success then
+                    return
+                end
 
-            local pipe_name = json_obj["pipeName"]
-            if not pipe_name then
-                return
-            end
+                local pipe_name = json_obj["pipeName"]
+                if not pipe_name then
+                    return
+                end
 
-            -- Cache the pipe name so we only start roslyn once.
-            _pipe_name = pipe_name
+                -- Cache the pipe name so we only start roslyn once.
+                _pipe_name = pipe_name
 
+                vim.schedule(function()
+                    lsp_start(pipe_name, target, config)
+                end)
+            end,
+            stderr_handler = function(_, chunk)
+                local log = require("vim.lsp.log")
+                if chunk and log.error() then
+                    log.error("rpc", "dotnet", "stderr", chunk)
+                end
+            end,
+        },
+        function()
+            _pipe_name = nil
             vim.schedule(function()
-                lsp_start(pipe_name, target, config)
+                vim.notify("Roslyn server stopped", vim.log.levels.ERROR)
             end)
-        end,
-        stderr_handler = function(_, chunk)
-            local log = require("vim.lsp.log")
-            if chunk and log.error() then
-                log.error("rpc", "dotnet", "stderr", chunk)
-            end
-        end,
-    })
+        end
+    )
 end
 
 -- Assigns the default capabilities from cmp if installed, and the capabilities from neovim
@@ -126,18 +135,18 @@ end
 local function get_default_capabilities(roslyn_config)
     local ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
     local capabilities = ok
-            and vim.tbl_deep_extend(
-                "force",
-                vim.lsp.protocol.make_client_capabilities(),
-                cmp_nvim_lsp.default_capabilities()
-            )
+        and vim.tbl_deep_extend(
+            "force",
+            vim.lsp.protocol.make_client_capabilities(),
+            cmp_nvim_lsp.default_capabilities()
+        )
         or vim.lsp.protocol.make_client_capabilities()
 
     -- This actually tells the server that the client can do filewatching.
     -- We will then later just not watch any files. This is because the server
     -- will fallback to its own filewatching which is super slow.
 
-    -- Default value is true, so the user needs to explicilty pass `false` for this to happen
+    -- Default value is true, so the user needs to explicitly pass `false` for this to happen
     -- `not filewatching` evaluates to true if the user don't provide a value for this
     if roslyn_config and roslyn_config.filewatching == false then
         capabilities = vim.tbl_deep_extend("force", capabilities, {
