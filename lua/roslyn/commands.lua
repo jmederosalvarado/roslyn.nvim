@@ -34,9 +34,9 @@ local function handle_fix_all_code_action(client, data)
             title = data.title,
             data = data.arguments[1],
             scope = flavor,
-        }, function(error, response)
-            if error then
-                vim.notify(error.message, vim.log.levels.ERROR)
+        }, function(err, response)
+            if err then
+                vim.notify(err.message, vim.log.levels.ERROR)
             end
             if response and response.edit then
                 vim.lsp.util.apply_workspace_edit(response.edit, "utf-8")
@@ -74,9 +74,9 @@ function M.nested_code_action(client)
                 client.request("codeAction/resolve", {
                     title = action.code_action.title,
                     data = action.code_action.data,
-                }, function(error, response)
-                    if error then
-                        vim.notify(error.message, vim.log.levels.ERROR)
+                }, function(err, response)
+                    if err then
+                        vim.notify(err.message, vim.log.levels.ERROR)
                     end
                     if response and response.edit then
                         vim.lsp.util.apply_workspace_edit(response.edit, "utf-8")
