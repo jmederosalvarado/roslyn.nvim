@@ -204,13 +204,6 @@ function M.setup(config)
 
     local cmd = get_cmd(roslyn_config.exe)
 
-    if cmd == nil then
-        return vim.notify(
-            string.format("%s not found. Refer to README on how to setup the language server", cmd),
-            vim.log.levels.INFO
-        )
-    end
-
     vim.api.nvim_create_autocmd("FileType", {
         group = vim.api.nvim_create_augroup("Roslyn", { clear = true }),
         pattern = { "cs" },
