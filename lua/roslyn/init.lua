@@ -211,11 +211,6 @@ function M.setup(config)
         )
     end
 
-    local filewatching = roslyn_config.filewatching
-    if filewatching == nil then
-        filewatching = true
-    end
-
     vim.api.nvim_create_autocmd("FileType", {
         group = vim.api.nvim_create_augroup("Roslyn", { clear = true }),
         pattern = { "cs" },
@@ -234,7 +229,7 @@ function M.setup(config)
 
             -- Roslyn is already running, so just call `vim.lsp.start` to handle everything
             if _pipe_name and known_solutions[sln_directory] then
-                lsp_start(_pipe_name, known_solutions[sln_directory], roslyn_config.config, filewatching)
+                lsp_start(_pipe_name, known_solutions[sln_directory], roslyn_config.config, roslyn_config.filewatching)
                 return
             end
 
@@ -248,15 +243,15 @@ function M.setup(config)
                 vim.ui.select(all_sln_files, { prompt = "Select target solution: " }, function(sln_file)
                     known_solutions[sln_directory] = sln_file
                     if _pipe_name then
-                        lsp_start(_pipe_name, sln_file, roslyn_config.config, filewatching)
+                        lsp_start(_pipe_name, sln_file, roslyn_config.config, roslyn_config.filewatching)
                     else
-                        run_roslyn(cmd, sln_file, roslyn_config.config, filewatching)
+                        run_roslyn(cmd, sln_file, roslyn_config.config, roslyn_config.filewatching)
                     end
                 end)
             end, { desc = "Selects the sln file for the current buffer" })
 
             if #all_sln_files == 1 then
-                run_roslyn(cmd, all_sln_files[1], roslyn_config.config, filewatching)
+                run_roslyn(cmd, all_sln_files[1], roslyn_config.config, roslyn_config.filewatching)
                 known_solutions[sln_directory] = all_sln_files[1]
 
                 return
@@ -266,7 +261,7 @@ function M.setup(config)
             local predicted_sln_file = require("roslyn.slnutils").predict_sln_file(opt.buf)
 
             if predicted_sln_file then
-                run_roslyn(cmd, predicted_sln_file, roslyn_config.config, filewatching)
+                run_roslyn(cmd, predicted_sln_file, roslyn_config.config, roslyn_config.filewatching)
                 known_solutions[sln_directory] = predicted_sln_file
             end
 
