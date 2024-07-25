@@ -39,6 +39,23 @@ local function lsp_start(pipe, target, config, filewatching)
             vim.notify("Detected missing dependencies. Run dotnet restore command.", vim.log.levels.ERROR)
             return vim.NIL
         end,
+        ["workspace/_roslyn_projectNeedsRestore"] = function(_, result, ctx)
+            local client = vim.lsp.get_client_by_id(ctx.client_id)
+            assert(client)
+
+            client.request("workspace/_roslyn_restore", result, function(err, response)
+                if err then
+                    vim.notify(err.message, vim.log.levels.ERROR)
+                end
+                if response then
+                    for _, v in ipairs(response) do
+                        vim.notify(v.message)
+                    end
+                end
+            end)
+
+            return vim.NIL
+        end,
     }, config.handlers or {})
     config.on_init = function(client)
         vim.notify("Initializing Roslyn client for " .. target, vim.log.levels.INFO)
