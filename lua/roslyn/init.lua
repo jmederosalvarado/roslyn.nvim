@@ -148,6 +148,7 @@ local function get_default_capabilities(roslyn_config)
 end
 
 ---@param exe string|string[]
+---@return string[]
 local function get_cmd(exe)
     local default_lsp_args =
         { "--logLevel=Information", "--extensionLogDirectory=" .. vim.fs.dirname(vim.lsp.get_log_path()) }
@@ -175,7 +176,7 @@ local M = {}
 
 ---@class InternalRoslynNvimConfig
 ---@field filewatching boolean
----@field exe string
+---@field exe? string
 ---@field config vim.lsp.ClientConfig
 
 ---@class RoslynNvimConfig
@@ -190,11 +191,7 @@ function M.setup(config)
     ---@type InternalRoslynNvimConfig
     local default_config = {
         filewatching = true,
-        exe = vim.fs.joinpath(
-            vim.fn.stdpath("data") --[[@as string]],
-            "roslyn",
-            "Microsoft.CodeAnalysis.LanguageServer.dll"
-        ),
+        exe = nil,
         -- I don't know how to make this a partial type.
         ---@diagnostic disable-next-line: missing-fields
         config = {
