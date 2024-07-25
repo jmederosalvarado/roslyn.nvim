@@ -34,11 +34,10 @@ require("roslyn").setup({
         --     - `root_dir`
         --     - `on_init`
     },
-    exe = vim.fs.joinpath(
-        vim.fn.stdpath("data") --[[@as string]],
-        "roslyn",
-        "Microsoft.CodeAnalysis.LanguageServer.dll"
-    ),
+    exe = {
+        "dotnet",
+        vim.fs.joinpath(vim.fn.stdpath("data"), "roslyn", "Microsoft.CodeAnalysis.LanguageServer.dll"),
+    },
     -- NOTE: Set `filewatching` to false if you experience performance problems.
     -- Defaults to true, since turning it off is a hack.
     -- If you notice that the server is _super_ slow, it is probably because of file watching
