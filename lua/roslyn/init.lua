@@ -233,7 +233,6 @@ function M.setup(config)
                 vim.ui.select(all_sln_files, { prompt = "Select target solution: " }, function(sln_file)
                     known_solutions[sln_directory] = sln_file
                     wrap_roslyn(cmd, sln_file, roslyn_config)
-                    vim.api.nvim_buf_del_user_command(opt.buf, "CSTarget")
                 end)
             end, { desc = "Selects the sln file for the buffer: " .. opt.buf })
         end,
