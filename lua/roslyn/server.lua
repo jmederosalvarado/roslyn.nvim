@@ -12,46 +12,46 @@ function M.start_server(cmd, with_pipe_name)
         with_pipe_name(_pipe_name)
         return
     end
-    if not _server_object then
-        vim.notify("starting new roslyn process", vim.log.levels.INFO)
-        _server_object = vim.system(cmd, {
-            detach = not vim.uv.os_uname().version:find("Windows"),
-            stdout = function(_, data)
-                if not data then
-                    return
-                end
-
-                -- try parse data as json
-                local success, json_obj = pcall(vim.json.decode, data)
-                if not success then
-                    return
-                end
-
-                local pipe_name = json_obj["pipeName"]
-                if not pipe_name then
-                    return
-                end
-
-                -- Cache the pipe name so we only start roslyn once.
-                _pipe_name = pipe_name
-
-                vim.schedule(function()
-                    with_pipe_name(pipe_name)
-                end)
-            end,
-            stderr_handler = function(_, chunk)
-                local log = require("vim.lsp.log")
-                if chunk and log.error() then
-                    log.error("rpc", "dotnet", "stderr", chunk)
-                end
-            end,
-        }, function()
-            _pipe_name = nil
-            vim.schedule(function()
-                vim.notify("Roslyn server stopped", vim.log.levels.ERROR)
-            end)
-        end)
+    if _server_object then
+        return
     end
+    _server_object = vim.system(cmd, {
+        detach = not vim.uv.os_uname().version:find("Windows"),
+        stdout = function(_, data)
+            if not data then
+                return
+            end
+
+            -- try parse data as json
+            local success, json_obj = pcall(vim.json.decode, data)
+            if not success then
+                return
+            end
+
+            local pipe_name = json_obj["pipeName"]
+            if not pipe_name then
+                return
+            end
+
+            -- Cache the pipe name so we only start roslyn once.
+            _pipe_name = pipe_name
+
+            vim.schedule(function()
+                with_pipe_name(pipe_name)
+            end)
+        end,
+        stderr_handler = function(_, chunk)
+            local log = require("vim.lsp.log")
+            if chunk and log.error() then
+                log.error("rpc", "dotnet", "stderr", chunk)
+            end
+        end,
+    }, function()
+        _pipe_name = nil
+        vim.schedule(function()
+            vim.notify("Roslyn server stopped", vim.log.levels.ERROR)
+        end)
+    end)
 end
 
 function M.stop_server()
@@ -63,7 +63,7 @@ function M.stop_server()
     _pipe_name = nil
     _server_object = nil
     vim.schedule(function()
-        vim.notify("stopping roslyn process", vim.log.levels.INFO)
+        vim.notify("Stopping roslyn process", vim.log.levels.INFO)
     end)
 end
 
