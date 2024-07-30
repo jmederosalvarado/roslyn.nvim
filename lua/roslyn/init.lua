@@ -101,23 +101,13 @@ local function lsp_start(pipe, target, config, filewatching)
         client.notify("solution/open", {
             ["solution"] = vim.uri_from_fname(target),
         })
+
+        local commands = require("roslyn.commands")
+        commands.fix_all_code_action(client)
+        commands.nested_code_action(client)
     end
 
-    local client_id = vim.lsp.start(config)
-
-    -- Handle the error in some way
-    if not client_id then
-        return
-    end
-
-    local client = vim.lsp.get_client_by_id(client_id)
-    if not client then
-        return
-    end
-
-    local commands = require("roslyn.commands")
-    commands.fix_all_code_action(client)
-    commands.nested_code_action(client)
+    vim.lsp.start(config)
 end
 
 ---@param exe string|string[]
