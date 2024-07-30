@@ -15,9 +15,8 @@ local function get_mason_installation()
 end
 
 -- Assigns the default capabilities from cmp if installed, and the capabilities from neovim
--- Merges it in with any user configured capabilities if provided
----@param filewatching boolean
-local function get_default_capabilities(filewatching)
+---@param roslyn_config? RoslynNvimConfig
+local function get_default_capabilities(roslyn_config)
     local ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
     local capabilities = ok
             and vim.tbl_deep_extend(
@@ -30,9 +29,10 @@ local function get_default_capabilities(filewatching)
     -- This actually tells the server that the client can do filewatching.
     -- We will then later just not watch any files. This is because the server
     -- will fallback to its own filewatching which is super slow.
+
     -- Default value is true, so the user needs to explicitly pass `false` for this to happen
     -- `not filewatching` evaluates to true if the user don't provide a value for this
-    if not filewatching then
+    if roslyn_config and roslyn_config.filewatching == false then
         capabilities = vim.tbl_deep_extend("force", capabilities, {
             workspace = {
                 didChangeWatchedFiles = {
@@ -58,15 +58,13 @@ local known_solutions = {}
 
 ---@param pipe string
 ---@param target string
----@param config? vim.lsp.ClientConfig
+---@param config vim.lsp.ClientConfig
 ---@param filewatching boolean
 local function lsp_start(pipe, target, config, filewatching)
     local sln_directory = vim.fs.dirname(target)
-    config = config or {}
     config.name = "roslyn"
     config.cmd = vim.lsp.rpc.connect(pipe)
     config.root_dir = sln_directory
-    config.capabilities = get_default_capabilities(filewatching)
     config.handlers = vim.tbl_deep_extend("force", {
         ["client/registerCapability"] = require("roslyn.hacks").with_filtered_watchers(
             vim.lsp.handlers["client/registerCapability"],
@@ -143,6 +141,11 @@ local function get_cmd(exe)
     end
 end
 
+---@class InternalRoslynNvimConfig
+---@field filewatching? boolean
+---@field exe? string|string[]
+---@field config vim.lsp.ClientConfig
+---
 ---@class RoslynNvimConfig
 ---@field filewatching? boolean
 ---@field exe? string|string[]
@@ -152,7 +155,7 @@ local M = {}
 
 ---Runs roslyn server (if not running already) and then lsp_start
 ---@param sln_file string
----@param roslyn_config RoslynNvimConfig
+---@param roslyn_config InternalRoslynNvimConfig
 local function wrap_roslyn(sln_file, roslyn_config)
     local cmd = get_cmd(roslyn_config.exe)
     server.start_server(cmd, function(pipe_name)
@@ -164,10 +167,15 @@ end
 function M.setup(config)
     vim.treesitter.language.register("c_sharp", "csharp")
 
-    ---@type RoslynNvimConfig
+    ---@type InternalRoslynNvimConfig
     local default_config = {
         filewatching = true,
         exe = nil,
+        ---@diagnostic disable-next-line: missing-fields
+        config = {
+            -- setting default capabilities early allows users to provide their own
+            capabilities = get_default_capabilities(config),
+        },
     }
 
     local roslyn_config = vim.tbl_deep_extend("force", default_config, config or {})
