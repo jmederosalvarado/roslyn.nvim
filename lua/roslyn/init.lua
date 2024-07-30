@@ -142,7 +142,7 @@ local function get_cmd(exe)
 end
 
 ---@class InternalRoslynNvimConfig
----@field filewatching? boolean
+---@field filewatching boolean
 ---@field exe? string|string[]
 ---@field config vim.lsp.ClientConfig
 ---
