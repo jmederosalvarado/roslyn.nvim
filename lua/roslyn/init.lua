@@ -14,18 +14,58 @@ local function get_mason_installation()
         or mason_installation
 end
 
+-- Assigns the default capabilities from cmp if installed, and the capabilities from neovim
+-- Merges it in with any user configured capabilities if provided
+---@param filewatching boolean
+local function get_default_capabilities(filewatching)
+    local ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
+    local capabilities = ok
+            and vim.tbl_deep_extend(
+                "force",
+                vim.lsp.protocol.make_client_capabilities(),
+                cmp_nvim_lsp.default_capabilities()
+            )
+        or vim.lsp.protocol.make_client_capabilities()
+
+    -- This actually tells the server that the client can do filewatching.
+    -- We will then later just not watch any files. This is because the server
+    -- will fallback to its own filewatching which is super slow.
+    -- Default value is true, so the user needs to explicitly pass `false` for this to happen
+    -- `not filewatching` evaluates to true if the user don't provide a value for this
+    if not filewatching then
+        capabilities = vim.tbl_deep_extend("force", capabilities, {
+            workspace = {
+                didChangeWatchedFiles = {
+                    dynamicRegistration = true,
+                },
+            },
+        })
+    end
+
+    -- HACK: Roslyn requires the dynamicRegistration to be set to support diagnostics for some reason
+    return vim.tbl_deep_extend("force", capabilities, {
+        textDocument = {
+            diagnostic = {
+                dynamicRegistration = true,
+            },
+        },
+    })
+end
+
 ---@type table<string, string>
 ---Key is solution directory, and value is sln target
 local known_solutions = {}
 
 ---@param pipe string
 ---@param target string
----@param config vim.lsp.ClientConfig
+---@param config? vim.lsp.ClientConfig
 ---@param filewatching boolean
 local function lsp_start(pipe, target, config, filewatching)
+    config = config or {}
     config.name = "roslyn"
     config.cmd = vim.lsp.rpc.connect(pipe)
     config.root_dir = vim.fs.dirname(target)
+    config.capabilities = get_default_capabilities(filewatching)
     config.handlers = vim.tbl_deep_extend("force", {
         ["client/registerCapability"] = require("roslyn.hacks").with_filtered_watchers(
             vim.lsp.handlers["client/registerCapability"],
@@ -80,45 +120,6 @@ local function lsp_start(pipe, target, config, filewatching)
     commands.nested_code_action(client)
 end
 
--- Assigns the default capabilities from cmp if installed, and the capabilities from neovim
--- Merges it in with any user configured capabilities if provided
----@param roslyn_config? RoslynNvimConfig
-local function get_default_capabilities(roslyn_config)
-    local ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
-    local capabilities = ok
-            and vim.tbl_deep_extend(
-                "force",
-                vim.lsp.protocol.make_client_capabilities(),
-                cmp_nvim_lsp.default_capabilities()
-            )
-        or vim.lsp.protocol.make_client_capabilities()
-
-    -- This actually tells the server that the client can do filewatching.
-    -- We will then later just not watch any files. This is because the server
-    -- will fallback to its own filewatching which is super slow.
-
-    -- Default value is true, so the user needs to explicitly pass `false` for this to happen
-    -- `not filewatching` evaluates to true if the user don't provide a value for this
-    if roslyn_config and roslyn_config.filewatching == false then
-        capabilities = vim.tbl_deep_extend("force", capabilities, {
-            workspace = {
-                didChangeWatchedFiles = {
-                    dynamicRegistration = true,
-                },
-            },
-        })
-    end
-
-    -- HACK: Roslyn requires the dynamicRegistration to be set to support diagnostics for some reason
-    return vim.tbl_deep_extend("force", capabilities, {
-        textDocument = {
-            diagnostic = {
-                dynamicRegistration = true,
-            },
-        },
-    })
-end
-
 ---@param exe string|string[]
 ---@return string[]
 local function get_cmd(exe)
@@ -144,46 +145,34 @@ local function get_cmd(exe)
     end
 end
 
-local M = {}
-
----@class InternalRoslynNvimConfig
----@field filewatching boolean
----@field exe? string
----@field config vim.lsp.ClientConfig
-
 ---@class RoslynNvimConfig
 ---@field filewatching? boolean
 ---@field exe? string|string[]
 ---@field config? vim.lsp.ClientConfig
 
+local M = {}
+
+---Runs roslyn server (if not running already) and then lsp_start
+---@param sln_file string
+---@param roslyn_config RoslynNvimConfig
+local function wrap_roslyn(sln_file, roslyn_config)
+    local cmd = get_cmd(roslyn_config.exe)
+    server.start_server(cmd, function(pipe_name)
+        lsp_start(pipe_name, sln_file, roslyn_config.config, roslyn_config.filewatching)
+    end)
+end
+
 ---@param config? RoslynNvimConfig
 function M.setup(config)
     vim.treesitter.language.register("c_sharp", "csharp")
 
-    ---@type InternalRoslynNvimConfig
+    ---@type RoslynNvimConfig
     local default_config = {
         filewatching = true,
         exe = nil,
-        -- I don't know how to make this a partial type.
-        ---@diagnostic disable-next-line: missing-fields
-        config = {
-            capabilities = get_default_capabilities(config),
-        },
     }
 
-    ---@type InternalRoslynNvimConfig
     local roslyn_config = vim.tbl_deep_extend("force", default_config, config or {})
-
-    ---Runs roslyn server (if not running already) and then lsp_start
-    ---@param cmd string[]
-    ---@param sln_file string
-    local function wrap_roslyn(cmd, sln_file)
-        server.start_server(cmd, function(pipe_name)
-            lsp_start(pipe_name, sln_file, roslyn_config.config, roslyn_config.filewatching)
-        end)
-    end
-
-    local cmd = get_cmd(roslyn_config.exe)
 
     vim.api.nvim_create_autocmd("FileType", {
         group = vim.api.nvim_create_augroup("Roslyn", { clear = true }),
@@ -203,7 +192,7 @@ function M.setup(config)
 
             -- Roslyn is already running, so just call `vim.lsp.start` to handle everything
             if known_solutions[sln_directory] then
-                wrap_roslyn(cmd, known_solutions[sln_directory])
+                wrap_roslyn(known_solutions[sln_directory], roslyn_config)
                 return
             end
 
@@ -216,12 +205,12 @@ function M.setup(config)
             vim.api.nvim_create_user_command("CSTarget", function()
                 vim.ui.select(all_sln_files, { prompt = "Select target solution: " }, function(sln_file)
                     known_solutions[sln_directory] = sln_file
-                    wrap_roslyn(cmd, sln_file)
+                    wrap_roslyn(sln_file, roslyn_config)
                 end)
             end, { desc = "Selects the sln file for the current buffer" })
 
             if #all_sln_files == 1 then
-                wrap_roslyn(cmd, all_sln_files[1])
+                wrap_roslyn(all_sln_files[1], roslyn_config)
                 known_solutions[sln_directory] = all_sln_files[1]
 
                 return
@@ -231,7 +220,7 @@ function M.setup(config)
             local predicted_sln_file = require("roslyn.slnutils").predict_sln_file(opt.buf)
 
             if predicted_sln_file then
-                wrap_roslyn(cmd, predicted_sln_file)
+                wrap_roslyn(predicted_sln_file, roslyn_config)
                 known_solutions[sln_directory] = predicted_sln_file
             end
 
