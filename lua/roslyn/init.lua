@@ -14,18 +14,24 @@ local function get_mason_installation()
         or mason_installation
 end
 
--- Assigns the default capabilities from cmp if installed, and the capabilities from neovim
----@param roslyn_config? RoslynNvimConfig
-local function get_default_capabilities(roslyn_config)
+---Assigns the default capabilities from cmp if installed, and the capabilities from neovim
+---@return lsp.ClientCapabilities
+local function get_default_capabilities()
     local ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
-    local capabilities = ok
+    return ok
             and vim.tbl_deep_extend(
                 "force",
                 vim.lsp.protocol.make_client_capabilities(),
                 cmp_nvim_lsp.default_capabilities()
             )
         or vim.lsp.protocol.make_client_capabilities()
+end
 
+---Extends the default capabilities with hacks
+---@param roslyn_config InternalRoslynNvimConfig
+---@return lsp.ClientCapabilities
+local function get_extendend_capabilities(roslyn_config)
+    local capabilities = roslyn_config.config.capabilities or get_default_capabilities()
     -- This actually tells the server that the client can do filewatching.
     -- We will then later just not watch any files. This is because the server
     -- will fallback to its own filewatching which is super slow.
@@ -172,13 +178,12 @@ function M.setup(config)
         filewatching = true,
         exe = nil,
         ---@diagnostic disable-next-line: missing-fields
-        config = {
-            -- setting default capabilities early allows users to provide their own
-            capabilities = get_default_capabilities(config),
-        },
+        config = {},
     }
 
     local roslyn_config = vim.tbl_deep_extend("force", default_config, config or {})
+    roslyn_config.config.capabilities = get_extendend_capabilities(roslyn_config)
+
     local cmd = get_cmd(roslyn_config.exe)
 
     vim.api.nvim_create_autocmd("FileType", {
