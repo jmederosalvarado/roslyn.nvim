@@ -1,4 +1,8 @@
-# roslyn.nvim
+# Archived (Consider using [this](https://github.com/seblj/roslyn.nvim) instead)
+
+After a very long time without being able to maintain this plugin I'm deciding to archive the repository. I've seen people mentioning [this fork](https://github.com/seblj/roslyn.nvim), which seems to be actively maintained. That's probably where I'll be contributing to if I find the time in the future.
+
+# roslyn.nvim [Deprecated]
 
 This plugin adds support for the new Roslyn-based C# language server [introduced](https://devblogs.microsoft.com/visualstudio/announcing-csharp-dev-kit-for-visual-studio-code) in the [vscode C# extension](https://github.com/dotnet/vscode-csharp).
 
