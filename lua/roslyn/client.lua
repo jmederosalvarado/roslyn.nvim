@@ -86,6 +86,14 @@ function M.spawn(cmd, target, settings, on_exit, on_attach, capabilities)
 	-- 	},
 	-- })
 
+    capabilities = vim.tbl_deep_extend("force", capabilities, {
+        textDocument = {
+            hover = {
+                contentFormat = { "markdown" },
+            },
+        }
+    })
+
 	local spawned = RoslynClient.new(target)
 
 	---@diagnostic disable-next-line: missing-fields
